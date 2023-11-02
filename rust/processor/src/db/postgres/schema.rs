@@ -484,6 +484,21 @@ diesel::table! {
 }
 
 diesel::table! {
+    current_limit_orders (position_id, limit_order_id) {
+        last_transaction_version -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Varchar,
+        limit_order_id -> Numeric,
+        is_closed -> Bool,
+        event_index -> Int8,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     current_objects (object_address) {
         #[max_length = 66]
         object_address -> Varchar,
@@ -497,6 +512,20 @@ diesel::table! {
         is_deleted -> Bool,
         inserted_at -> Timestamp,
         untransferrable -> Bool,
+    }
+}
+
+diesel::table! {
+    current_positions (position_id) {
+        last_transaction_version -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Varchar,
+        is_closed -> Bool,
+        event_index -> Int8,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
     }
 }
 
@@ -695,6 +724,20 @@ diesel::table! {
 }
 
 diesel::table! {
+    current_tpsls (position_id) {
+        last_transaction_version -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Varchar,
+        is_closed -> Bool,
+        event_index -> Int8,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     delegated_staking_activities (transaction_version, event_index) {
         transaction_version -> Int8,
         event_index -> Int8,
@@ -777,6 +820,18 @@ diesel::table! {
         event_index -> Int8,
         #[max_length = 300]
         indexed_type -> Varchar,
+    }
+}
+
+diesel::table! {
+    fee_store_datas (transaction_version, write_set_change_index) {
+        transaction_version -> Int8,
+        write_set_change_index -> Int8,
+        #[max_length = 66]
+        asset_type -> Varchar,
+        net_accumulated_fees -> Numeric,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
     }
 }
 
@@ -874,6 +929,137 @@ diesel::table! {
 }
 
 diesel::table! {
+    limit_order_datas (transaction_version, write_set_change_index) {
+        transaction_version -> Int8,
+        write_set_change_index -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Varchar,
+        #[max_length = 66]
+        owner_addr -> Varchar,
+        limit_order_id -> Numeric,
+        is_increase -> Bool,
+        position_size -> Numeric,
+        margin -> Numeric,
+        trigger_price -> Numeric,
+        triggers_above -> Bool,
+        trigger_payment -> Numeric,
+        max_price_slippage -> Numeric,
+        expiration -> Numeric,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    market_activities (transaction_version, event_creation_number, event_sequence_number, event_index) {
+        transaction_version -> Int8,
+        event_creation_number -> Int8,
+        event_sequence_number -> Int8,
+        event_index -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Nullable<Varchar>,
+        #[max_length = 5000]
+        event_type -> Varchar,
+        id -> Nullable<Numeric>,
+        #[max_length = 66]
+        owner_addr -> Nullable<Varchar>,
+        perp_price -> Nullable<Numeric>,
+        is_long -> Nullable<Bool>,
+        margin_amount -> Nullable<Numeric>,
+        position_size -> Nullable<Numeric>,
+        fee -> Nullable<Numeric>,
+        protocol_fee -> Nullable<Numeric>,
+        pnl -> Nullable<Numeric>,
+        take_profit_price -> Nullable<Numeric>,
+        stop_loss_price -> Nullable<Numeric>,
+        trigger_price -> Nullable<Numeric>,
+        max_price_slippage -> Nullable<Numeric>,
+        is_increase -> Nullable<Bool>,
+        triggers_above -> Nullable<Bool>,
+        expiration -> Nullable<Numeric>,
+        trigger_payment_amount -> Nullable<Numeric>,
+        next_funding_rate -> Nullable<Numeric>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    market_configs (transaction_version, write_set_change_index) {
+        transaction_version -> Int8,
+        write_set_change_index -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        margin_token_id -> Varchar,
+        #[max_length = 66]
+        perp_symbol -> Varchar,
+        min_taker_fee -> Numeric,
+        max_taker_fee -> Numeric,
+        min_maker_fee -> Numeric,
+        max_maker_fee -> Numeric,
+        liquidation_fee -> Numeric,
+        referrer_fee -> Numeric,
+        min_funding_rate -> Numeric,
+        max_funding_rate -> Numeric,
+        base_funding_rate -> Numeric,
+        funding_interval -> Numeric,
+        max_oi -> Numeric,
+        max_oi_imbalance -> Numeric,
+        maintenance_margin -> Nullable<Numeric>,
+        max_leverage -> Numeric,
+        min_order_size -> Numeric,
+        max_order_size -> Numeric,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    market_datas (transaction_version, write_set_change_index) {
+        transaction_version -> Int8,
+        write_set_change_index -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        margin_token_id -> Varchar,
+        #[max_length = 66]
+        perp_symbol -> Varchar,
+        total_long_margin -> Numeric,
+        total_short_margin -> Numeric,
+        long_oi -> Numeric,
+        short_oi -> Numeric,
+        long_funding_accumulated_per_unit -> Numeric,
+        short_funding_accumulated_per_unit -> Numeric,
+        total_long_funding_accumulated -> Numeric,
+        total_short_funding_accumulated -> Numeric,
+        next_funding_rate -> Numeric,
+        last_funding_round -> Timestamp,
+        is_long_close_only -> Bool,
+        is_short_close_only -> Bool,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    mirage_debt_store_datas (transaction_version, write_set_change_index) {
+        transaction_version -> Int8,
+        write_set_change_index -> Int8,
+        #[max_length = 66]
+        asset_type -> Varchar,
+        debt_elastic -> Numeric,
+        debt_base -> Numeric,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     move_modules (transaction_version, write_set_change_index) {
         transaction_version -> Int8,
         write_set_change_index -> Int8,
@@ -938,6 +1124,26 @@ diesel::table! {
         is_deleted -> Bool,
         inserted_at -> Timestamp,
         untransferrable -> Bool,
+    }
+}
+
+diesel::table! {
+    position_datas (transaction_version, write_set_change_index) {
+        transaction_version -> Int8,
+        write_set_change_index -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Varchar,
+        #[max_length = 66]
+        owner_addr -> Varchar,
+        opening_price -> Numeric,
+        is_long -> Bool,
+        margin_amount -> Numeric,
+        position_size -> Numeric,
+        last_funding_accumulated -> Numeric,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
     }
 }
 
@@ -1212,6 +1418,44 @@ diesel::table! {
 }
 
 diesel::table! {
+    tpsl_datas (transaction_version, write_set_change_index) {
+        transaction_version -> Int8,
+        write_set_change_index -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Varchar,
+        #[max_length = 66]
+        owner_addr -> Varchar,
+        take_profit_price -> Numeric,
+        stop_loss_price -> Numeric,
+        trigger_payment_amount -> Numeric,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    trade_datas (transaction_version, position_id) {
+        transaction_version -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Varchar,
+        #[max_length = 66]
+        owner_addr -> Varchar,
+        is_long -> Bool,
+        position_size -> Numeric,
+        price -> Numeric,
+        fee -> Numeric,
+        pnl -> Numeric,
+        event_type -> Varchar,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     transaction_size_info (transaction_version) {
         transaction_version -> Int8,
         size_bytes -> Int8,
@@ -1269,6 +1513,93 @@ diesel::table! {
 }
 
 diesel::table! {
+    vault_activities (transaction_version, event_creation_number, event_sequence_number, event_index) {
+        transaction_version -> Int8,
+        event_creation_number -> Int8,
+        event_sequence_number -> Int8,
+        event_index -> Int8,
+        #[max_length = 66]
+        collection_id -> Varchar,
+        #[max_length = 66]
+        vault_id -> Nullable<Varchar>,
+        #[max_length = 5000]
+        event_type -> Varchar,
+        #[max_length = 66]
+        owner_addr -> Nullable<Varchar>,
+        collateral_amount -> Nullable<Numeric>,
+        borrow_amount -> Nullable<Numeric>,
+        fee_amount -> Nullable<Numeric>,
+        socialized_amount -> Nullable<Numeric>,
+        collateralization_rate_before -> Nullable<Numeric>,
+        collateralization_rate_after -> Nullable<Numeric>,
+        new_interest_per_second -> Nullable<Numeric>,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    vault_collection_configs (transaction_version, write_set_change_index) {
+        transaction_version -> Int8,
+        write_set_change_index -> Int8,
+        #[max_length = 66]
+        collection_id -> Varchar,
+        #[max_length = 66]
+        collateral_token_id -> Varchar,
+        #[max_length = 66]
+        borrow_token_id -> Varchar,
+        interest_per_second -> Numeric,
+        initial_collateralization_rate -> Numeric,
+        maintenance_collateralization_rate -> Numeric,
+        liquidation_multiplier -> Numeric,
+        borrow_fee -> Numeric,
+        protocol_liquidation_fee -> Numeric,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    vault_collection_datas (transaction_version, write_set_change_index) {
+        transaction_version -> Int8,
+        write_set_change_index -> Int8,
+        #[max_length = 66]
+        collection_id -> Varchar,
+        #[max_length = 66]
+        collateral_token_id -> Varchar,
+        #[max_length = 66]
+        borrow_token_id -> Varchar,
+        total_collateral -> Numeric,
+        borrow_elastic -> Numeric,
+        borrow_base -> Numeric,
+        global_debt_part -> Numeric,
+        last_interest_payment -> Timestamp,
+        cached_exchange_rate -> Numeric,
+        last_interest_update -> Timestamp,
+        is_emergency -> Bool,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    vault_datas (transaction_version, write_set_change_index) {
+        transaction_version -> Int8,
+        write_set_change_index -> Int8,
+        #[max_length = 66]
+        owner_addr -> Varchar,
+        #[max_length = 66]
+        collection_id -> Varchar,
+        #[max_length = 66]
+        vault_id -> Varchar,
+        collateral_amount -> Numeric,
+        borrow_part -> Numeric,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     write_set_changes (transaction_version, index) {
         transaction_version -> Int8,
         index -> Int8,
@@ -1319,7 +1650,9 @@ diesel::allow_tables_to_appear_in_same_query!(
     current_delegator_balances,
     current_fungible_asset_balances,
     current_fungible_asset_balances_legacy,
+    current_limit_orders,
     current_objects,
+    current_positions,
     current_staking_pool_voter,
     current_table_items,
     current_token_datas,
@@ -1329,21 +1662,29 @@ diesel::allow_tables_to_appear_in_same_query!(
     current_token_pending_claims,
     current_token_royalty_v1,
     current_token_v2_metadata,
+    current_tpsls,
     delegated_staking_activities,
     delegated_staking_pool_balances,
     delegated_staking_pools,
     delegator_balances,
     event_size_info,
     events,
+    fee_store_datas,
     fungible_asset_activities,
     fungible_asset_balances,
     fungible_asset_metadata,
     indexer_status,
     ledger_infos,
+    limit_order_datas,
+    market_activities,
+    market_configs,
+    market_datas,
+    mirage_debt_store_datas,
     move_modules,
     move_resources,
     nft_points,
     objects,
+    position_datas,
     processor_status,
     proposal_votes,
     signatures,
@@ -1357,9 +1698,15 @@ diesel::allow_tables_to_appear_in_same_query!(
     token_ownerships,
     token_ownerships_v2,
     tokens,
+    tpsl_datas,
+    trade_datas,
     transaction_size_info,
     transactions,
     user_transactions,
+    vault_activities,
+    vault_collection_configs,
+    vault_collection_datas,
+    vault_datas,
     write_set_changes,
     write_set_size_info,
 );

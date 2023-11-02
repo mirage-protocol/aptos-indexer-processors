@@ -33,7 +33,8 @@ use crate::{
         transaction_metadata_processor::TransactionMetadataProcessor,
         user_transaction_processor::UserTransactionProcessor,
         DefaultProcessingResult, Processor, ProcessorConfig, ProcessorTrait,
-    },
+        mirage_processor::MirageProcessor,
+   },
     schema::ledger_infos,
     transaction_filter::TransactionFilter,
     utils::{
@@ -197,7 +198,11 @@ impl Worker {
                 0
             });
 
-        let starting_version = self.starting_version.unwrap_or(starting_version_from_db);
+        let starting_version = match self.starting_version {
+            // Some(version) => version,
+            Some(version) => if starting_version_from_db > 0 { starting_version_from_db } else { version }
+            None => starting_version_from_db,
+        };
 
         info!(
             processor_name = processor_name,
@@ -978,5 +983,10 @@ pub fn build_processor(
                 gap_detector_sender.expect("Parquet processor requires a gap detector sender"),
             ))
         },
+        ProcessorConfig::MirageProcessor(config) => Processor::from(MirageProcessor::new(
+            db_pool,
+            config.clone(),
+            per_table_chunk_sizes,
+        )),
     }
 }

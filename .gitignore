@@ -36,3 +36,4 @@ lcov.info
 # Cached python files
 __pycache__
 
+.env
