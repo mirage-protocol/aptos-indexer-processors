@@ -14,6 +14,7 @@ use aptos_protos::{
     },
     util::timestamp::Timestamp,
 };
+use ahash::AHashMap;
 use bigdecimal::{BigDecimal, Signed, ToPrimitive, Zero};
 use chrono::NaiveDateTime;
 use lazy_static::lazy_static;
@@ -500,6 +501,9 @@ pub struct AggregatorSnapshot {
 pub struct DerivedStringSnapshot {
     pub value: String,
 }
+
+/// Maps object to owner
+pub type ObjectOwnerMapping = AHashMap<String, String>;
 
 #[cfg(test)]
 mod tests {
