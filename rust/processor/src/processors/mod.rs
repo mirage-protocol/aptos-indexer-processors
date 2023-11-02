@@ -10,6 +10,7 @@ pub mod coin_processor;
 pub mod default_processor;
 pub mod events_processor;
 pub mod fungible_asset_processor;
+pub mod mirage_processor;
 pub mod monitoring_processor;
 pub mod nft_metadata_processor;
 pub mod objects_processor;
@@ -27,6 +28,7 @@ use self::{
     default_processor::DefaultProcessor,
     events_processor::EventsProcessor,
     fungible_asset_processor::FungibleAssetProcessor,
+    mirage_processor::{MirageProcessor, MirageProcessorConfig},
     monitoring_processor::MonitoringProcessor,
     nft_metadata_processor::{NftMetadataProcessor, NftMetadataProcessorConfig},
     objects_processor::{ObjectsProcessor, ObjectsProcessorConfig},
@@ -195,6 +197,7 @@ pub enum ProcessorConfig {
     TransactionMetadataProcessor,
     UserTransactionProcessor,
     DefaultParquetProcessor(DefaultParquetProcessorConfig),
+    MirageProcessor(MirageProcessorConfig),
 }
 
 impl ProcessorConfig {
@@ -242,6 +245,7 @@ pub enum Processor {
     TransactionMetadataProcessor,
     UserTransactionProcessor,
     DefaultParquetProcessor,
+    MirageProcessor,
 }
 
 #[cfg(test)]

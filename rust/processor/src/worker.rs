@@ -10,8 +10,9 @@ use crate::{
         account_transactions_processor::AccountTransactionsProcessor, ans_processor::AnsProcessor,
         coin_processor::CoinProcessor, default_processor::DefaultProcessor,
         events_processor::EventsProcessor, fungible_asset_processor::FungibleAssetProcessor,
-        monitoring_processor::MonitoringProcessor, nft_metadata_processor::NftMetadataProcessor,
-        objects_processor::ObjectsProcessor, parquet_default_processor::DefaultParquetProcessor,
+        parquet_default_processor::DefaultParquetProcessor,
+        mirage_processor::MirageProcessor, monitoring_processor::MonitoringProcessor,
+        nft_metadata_processor::NftMetadataProcessor, objects_processor::ObjectsProcessor,
         stake_processor::StakeProcessor, token_processor::TokenProcessor,
         token_v2_processor::TokenV2Processor,
         transaction_metadata_processor::TransactionMetadataProcessor,
@@ -911,5 +912,10 @@ pub fn build_processor(
                 gap_detector_sender.expect("Parquet processor requires a gap detector sender"),
             ))
         },
+        ProcessorConfig::MirageProcessor(config) => Processor::from(MirageProcessor::new(
+            db_pool,
+            config.clone(),
+            per_table_chunk_sizes,
+        )),
     }
 }
