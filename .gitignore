@@ -35,3 +35,4 @@ node_modules/
 # Cached python files
 __pycache__
 
+.env
