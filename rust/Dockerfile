@@ -29,6 +29,7 @@ FROM debian:bullseye-slim
 
 COPY --from=builder /usr/local/bin/processor /usr/local/bin
 COPY --from=builder /usr/local/bin/indexer-metrics /usr/local/bin
+COPY --from=builder /app/config.yaml /usr/local/config.yaml
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \

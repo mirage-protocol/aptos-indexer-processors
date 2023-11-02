@@ -16,6 +16,7 @@ use crate::{
         default_processor::DefaultProcessor,
         events_processor::EventsProcessor,
         fungible_asset_processor::FungibleAssetProcessor,
+        mirage_processor::MirageProcessor,
         monitoring_processor::MonitoringProcessor,
         nft_metadata_processor::NftMetadataProcessor,
         objects_processor::ObjectsProcessor,
@@ -235,7 +236,17 @@ impl Worker {
                 0
             });
 
-        let starting_version = self.starting_version.unwrap_or(starting_version_from_db);
+        let starting_version = match self.starting_version {
+            // Some(version) => version,
+            Some(version) => {
+                if starting_version_from_db > 0 {
+                    starting_version_from_db
+                } else {
+                    version
+                }
+            },
+            None => starting_version_from_db,
+        };
 
         info!(
             processor_name = processor_name,
@@ -976,5 +987,10 @@ pub fn build_processor(
                 gap_detector_sender.expect("Parquet processor requires a gap detector sender"),
             ))
         },
+        ProcessorConfig::MirageProcessor(config) => Processor::from(MirageProcessor::new(
+            db_pool,
+            config.clone(),
+            per_table_chunk_sizes,
+        )),
     }
 }
