@@ -74,3 +74,61 @@ transactions are splitted into tasks and inserted with random order.
 
 ### Manually running diesel-cli
 - `cd` into the database folder you use under `src/db/` (e.g. `src/db/postgres`), then run it.
+
+### Environment Variables and Their Config File Equivalents
+
+The following environment variables can be used to override specific fields in the configuration file:
+
+1. **PROCESSOR_POSTGRES_CONNECTION_STRING**
+   - Replaces: `postgres_connection_string`
+   - Description: Connection string for the PostgreSQL database
+
+2. **PROCESSOR_INDEXER_GRPC_DATA_SERVICE_ADDRESS**
+   - Replaces: `indexer_grpc_data_service_address`
+   - Description: URL of the GRPC data service
+
+3. **MIRAGE_PROCESSOR_DEPLOYER_ADDRESS**
+   - Replaces: `deployer_address`
+   - Description: Address of the Mirage protocol deployer
+
+4. **PROCESSOR_STARTING_VERSION**
+   - Replaces: `starting_version`
+   - Description: Version number to start indexing from
+
+5. **PROCESSOR_ENDING_VERSION**
+   - Replaces: `ending_version`
+   - Description: Version number to end indexing at
+
+6. **PROCESSOR_AUTH_TOKEN**
+   - Replaces: `auth_token`
+   - Description: Authentication token for the GRPC service
+
+7. **PROCESSOR_NUMBER_CONCURRENT_TASKS**
+   - Replaces: `number_concurrent_processing_tasks`
+   - Description: Number of tasks to process transactions concurrently
+
+8. **PROCESSOR_DB_POOL_SIZE**
+   - Replaces: `db_pool_size`
+   - Description: Size of the database connection pool
+
+9. **PROCESSOR_GAP_DETECTION_BATCH_SIZE**
+   - Replaces: `gap_detection_batch_size`
+   - Description: Number of batches to check for gaps
+
+10. **PROCESSOR_PARQUET_GAP_DETECTION_BATCH_SIZE**
+    - Replaces: `parquet_gap_detection_batch_size`
+    - Description: Number of parquet batches to check for gaps
+
+11. **PROCESSOR_PB_CHANNEL_TXN_CHUNK_SIZE**
+    - Replaces: `pb_channel_txn_chunk_size`
+    - Description: Number of transactions per chunk
+
+12. **PROCESSOR_ENABLE_VERBOSE_LOGGING**
+    - Replaces: `enable_verbose_logging`
+    - Description: Enable verbose logging output
+
+13. **PROCESSOR_GRPC_RESPONSE_ITEM_TIMEOUT_SECS**
+    - Replaces: `grpc_response_item_timeout_in_secs`
+    - Description: Timeout in seconds for GRPC responses
+
+These environment variables allow for dynamic configuration and can be set to override the corresponding fields in the configuration file, providing flexibility in deployment and testing.

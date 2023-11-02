@@ -22,6 +22,7 @@ anyhow = "1.0.62"
 # Aptos repos must have the same rev has the Suzuka node it connect to.
 aptos-protos = { git = "https://github.com/movementlabsxyz/aptos-core", rev = "338f9a1bcc06f62ce4a4994f1642b9a61b631ee0" }
 aptos-system-utils = { git = "https://github.com/movementlabsxyz/aptos-core", rev = "338f9a1bcc06f62ce4a4994f1642b9a61b631ee0" }
+aptos-types = { git = "https://github.com/movementlabsxyz/aptos-core", rev = "338f9a1bcc06f62ce4a4994f1642b9a61b631ee0" }
 async-trait = "0.1.53"
 backtrace = "0.3.58"
 base64 = "0.13.0"

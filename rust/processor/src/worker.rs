@@ -16,6 +16,7 @@ use crate::{
         default_processor::DefaultProcessor,
         events_processor::EventsProcessor,
         fungible_asset_processor::FungibleAssetProcessor,
+        mirage_processor::MirageProcessor,
         monitoring_processor::MonitoringProcessor,
         nft_metadata_processor::NftMetadataProcessor,
         objects_processor::ObjectsProcessor,
@@ -976,5 +977,10 @@ pub fn build_processor(
                 gap_detector_sender.expect("Parquet processor requires a gap detector sender"),
             ))
         },
+        ProcessorConfig::MirageProcessor(config) => Processor::from(MirageProcessor::new(
+            db_pool,
+            config.clone(),
+            per_table_chunk_sizes,
+        )),
     }
 }

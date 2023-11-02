@@ -5,6 +5,7 @@ use crate::{
     db::common::models::property_map::{PropertyMap, TokenObjectPropertyMap},
     utils::counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
 };
+use ahash::AHashMap;
 use aptos_protos::{
     transaction::v1::{
         multisig_transaction_payload::Payload as MultisigPayloadType,
@@ -506,6 +507,9 @@ pub struct AggregatorSnapshot {
 pub struct DerivedStringSnapshot {
     pub value: String,
 }
+
+/// Maps object to owner
+pub type ObjectOwnerMapping = AHashMap<String, String>;
 
 #[cfg(test)]
 mod tests {

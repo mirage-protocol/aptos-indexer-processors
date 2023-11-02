@@ -13,6 +13,7 @@ repository = "https://github.com/aptos-labs/aptos-core"
 rust-version = { workspace = true }
 
 [dependencies]
+aptos-types = { workspace = true }
 ahash = { workspace = true }
 anyhow = { workspace = true }
 aptos-moving-average = { workspace = true }
@@ -26,6 +27,7 @@ clap = { workspace = true }
 diesel = { workspace = true }
 diesel-async = { workspace = true }
 diesel_migrations = { workspace = true }
+dotenv = "0.15.0"
 enum_dispatch = { workspace = true }
 field_count = { workspace = true }
 futures = { workspace = true }

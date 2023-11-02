@@ -16,3 +16,10 @@ pub mod token_models;
 pub mod token_v2_models;
 pub mod transaction_metadata_model;
 pub mod user_transactions_models;
+
+pub mod market_models;
+pub mod mirage_models;
+pub mod rate_limiter;
+pub mod rebase;
+pub mod signed64;
+pub mod vault_models;
