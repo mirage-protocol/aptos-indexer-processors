@@ -14,3 +14,7 @@ pub mod stake_models;
 pub mod token_models;
 pub mod token_v2_models;
 pub mod user_transactions_models;
+pub mod mirage;
+pub mod rebase;
+pub mod market_models;
+pub mod vault_models;

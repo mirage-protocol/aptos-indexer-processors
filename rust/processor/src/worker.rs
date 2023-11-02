@@ -11,6 +11,7 @@ use crate::{
         nft_metadata_processor::NftMetadataProcessor, stake_processor::StakeProcessor,
         token_processor::TokenProcessor, token_v2_processor::TokenV2Processor,
         user_transaction_processor::UserTransactionProcessor, ProcessingResult, Processor,
+        mirage_processor::MirageProcessor,
         ProcessorConfig, ProcessorTrait,
     },
     schema::ledger_infos,
@@ -479,8 +480,8 @@ pub fn build_processor(config: &ProcessorConfig, db_pool: PgDbPool) -> Processor
         },
         ProcessorConfig::TokenV2Processor => Processor::from(TokenV2Processor::new(db_pool)),
         ProcessorConfig::UserTransactionProcessor => {
-            Processor::from(UserTransactionProcessor::new(db_pool))
-        },
+            Processor::from(UserTransactionProcessor::new(db_pool))},
+        ProcessorConfig::MirageProcessor => Arc::new(MirageProcessor::new(db_pool)),
     }
 }
 
