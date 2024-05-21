@@ -221,7 +221,10 @@ impl Worker {
                 0
             });
 
-        let starting_version = self.starting_version.unwrap_or(starting_version_from_db);
+        let starting_version = match self.starting_version {
+            Some(version) => if (starting_version_from_db > 0) {starting_version_from_db } else { version }
+            None => starting_version_from_db,
+        };
 
         info!(
             processor_name = processor_name,
