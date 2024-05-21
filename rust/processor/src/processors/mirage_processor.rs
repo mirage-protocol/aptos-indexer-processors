@@ -30,6 +30,8 @@ use anyhow::bail;
 use aptos_protos::transaction::v1::{transaction::TxnData, write_set_change::Change, Transaction};
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
+use bigdecimal::ToPrimitive;
+use core::hash::Hash;
 use diesel::{
     pg::Pg, query_builder::QueryFragment, sql_types::Bool, upsert::excluded, BoolExpressionMethods,
     BoxableExpression, ExpressionMethods,
@@ -822,13 +824,21 @@ pub async fn parse_mirage_protocol(
     let mut tpsl_datas = vec![];
 
     let mut all_trades: Vec<Trade> = vec![];
-    let mut all_open_positions: Vec<OpenPosition> = vec![];
+    let mut all_open_positions: AHashMap<String, OpenPosition> = AHashMap::new();
     let mut all_closed_positions: Vec<ClosedPosition> = vec![];
-    let mut all_open_tpsls: Vec<OpenTpsl> = vec![];
+    let mut all_open_tpsls: AHashMap<String, OpenTpsl> = AHashMap::new();
     let mut all_closed_tpsls: Vec<ClosedTpsl> = vec![];
-    let mut all_open_limit_orders: Vec<OpenLimitOrder> = vec![];
+    let mut all_open_limit_orders: AHashMap<(String, u64), OpenLimitOrder> = AHashMap::new();
     let mut all_closed_limit_orders: Vec<ClosedLimitOrder> = vec![];
     let mut all_market_activities: Vec<MarketActivityModel> = vec![];
+
+    // Helper function to update the latest transaction in the HashMap
+    fn update_latest<T, K>(map: &mut AHashMap<K, T>, items: Vec<T>, get_id: impl Fn(&T) -> K) where K: Hash, K: std::cmp::Eq {
+        for item in items {
+            let id = get_id(&item);
+            map.insert(id, item);
+        }
+    }
 
     for txn in transactions {
         let txn_version = txn.version;
@@ -1012,31 +1022,31 @@ pub async fn parse_mirage_protocol(
                 VaultActivityModel::from_transaction(txn, &token_v2_metadata_helper, mirage_module_address);
             let (
                 mut trades,
-                mut open_positions,
+                open_positions,
                 mut closed_positions,
-                mut open_tpsls,
+                open_tpsls,
                 mut closed_tpsls,
-                mut open_limit_orders,
+                open_limit_orders,
                 mut closed_limit_orders,
                 mut market_activities,
             ) = MarketActivityModel::from_transaction(txn, &token_v2_metadata_helper, mirage_module_address);
 
+            update_latest(&mut all_open_positions, open_positions, |pos| pos.position_id.clone());
+            update_latest(&mut all_open_limit_orders, open_limit_orders, |pos| (pos.position_id.clone(), pos.limit_order_id.to_u64().expect("invalid limit order id")));
+            update_latest(&mut all_open_tpsls, open_tpsls, |pos| pos.position_id.clone());
+
             all_vault_activities.append(&mut vault_activities);
-
             all_trades.append(&mut trades);
-
-            all_open_positions.append(&mut open_positions);
             all_closed_positions.append(&mut closed_positions);
-
-            all_open_tpsls.append(&mut open_tpsls);
             all_closed_tpsls.append(&mut closed_tpsls);
-
-            all_open_limit_orders.append(&mut open_limit_orders);
             all_closed_limit_orders.append(&mut closed_limit_orders);
-
             all_market_activities.append(&mut market_activities);
         }
     }
+
+    let mut all_open_positions: Vec<OpenPosition> = all_open_positions.into_values().collect();
+    let mut all_open_limit_orders: Vec<OpenLimitOrder> = all_open_limit_orders.into_values().collect();
+    let mut all_open_tpsls: Vec<OpenTpsl> = all_open_tpsls.into_values().collect();
 
     // Sort by PK
     mirage_debt_stores.sort_by(|a, b| a.asset_type.cmp(&b.asset_type));
@@ -1057,8 +1067,11 @@ pub async fn parse_mirage_protocol(
     tpsl_datas.sort_by(|a, b| (&a.position_id, &a.market_id).cmp(&(&b.position_id, &b.market_id)));
 
     all_trades.sort_by(|a, b| a.position_id.cmp(&b.position_id));
-    all_open_limit_orders.sort_by(|a, b| a.limit_order_id.cmp(&b.limit_order_id));
     all_closed_limit_orders.sort_by(|a, b| a.limit_order_id.cmp(&b.limit_order_id));
+
+    all_open_positions.sort_by(|a, b| a.position_id.cmp(&b.position_id));
+    all_open_tpsls.sort_by(|a, b| a.position_id.cmp(&b.position_id));
+    all_open_limit_orders.sort_by(|a, b| (&a.position_id, &a.limit_order_id).cmp(&(&b.position_id, &b.limit_order_id)));
 
     (
         mirage_debt_stores,
