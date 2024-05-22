@@ -222,7 +222,8 @@ impl Worker {
             });
 
         let starting_version = match self.starting_version {
-            Some(version) => if (starting_version_from_db > 0) {starting_version_from_db } else { version }
+            // Some(version) => version,
+            Some(version) => if starting_version_from_db > 0 { starting_version_from_db } else { version }
             None => starting_version_from_db,
         };
 

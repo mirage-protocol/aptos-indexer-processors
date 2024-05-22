@@ -245,6 +245,18 @@ pub async fn insert_to_db(
         closed_limit_orders,
         get_config_table_chunk_size::<OpenLimitOrder>("open_limit_orders", per_table_chunk_sizes),
     );
+    let dtp = execute_in_chunks(
+        conn.clone(),
+        delete_open_tpsls_query,
+        closed_tpsls,
+        get_config_table_chunk_size::<OpenTpsl>("open_tpsls", per_table_chunk_sizes),
+    );
+    let dop = execute_in_chunks(
+        conn.clone(),
+        delete_open_positions_query,
+        closed_positions,
+        get_config_table_chunk_size::<ClosedPosition>("closed_positions", per_table_chunk_sizes),
+    );
     let ma = execute_in_chunks(
         conn.clone(),
         insert_market_activities_query,
@@ -274,13 +286,15 @@ pub async fn insert_to_db(
         ctp_res,
         ol_res,
         cl_res,
+        dop_res,
+        dtp_res,
         dl_res,
         ma_res,
-    ) = tokio::join!(cfd, cfs, vcd, vc, vd, va, mcd, mc, pd, tpd, lod, td, op, cp, otp, ctp, ol, cl, dl, ma);
+    ) = tokio::join!(cfd, cfs, vcd, vc, vd, va, mcd, mc, pd, tpd, lod, td, op, cp, otp, ctp, ol, cl, dop, dtp, dl, ma);
 
     for res in [
         cfd_res, cfs_res, vcd_res, vc_res, vd_res, va_res, mcd_res, mc_res, pd_res, tpd_res,
-        lod_res, td_res, op_res, cp_res, otp_res, ctp_res, ol_res, cl_res, dl_res, ma_res,
+        lod_res, td_res, op_res, cp_res, otp_res, ctp_res, ol_res, cl_res, dop_res, dtp_res, dl_res, ma_res,
     ] {
         res?;
     }
@@ -589,6 +603,86 @@ fn delete_open_limit_orders_query(
         }
         (
             diesel::delete(open_limit_orders::table).filter(conditions),
+            None,
+        )
+    }
+}
+
+fn delete_open_positions_query(
+    items_to_insert: Vec<ClosedPosition>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::open_positions;
+    let position_ids: Vec<String> = items_to_insert
+        .iter()
+        .map(|x| x.position_id.clone())
+        .collect();
+
+    if items_to_insert.is_empty() {
+        // empty query
+        let conditions =
+            Box::new(open_positions::position_id.eq(String::from("INVALID ADDRESS")))
+                as Box<dyn BoxableExpression<open_positions::table, Pg, SqlType = Bool>>;
+        (
+            diesel::delete(open_positions::table).filter(conditions),
+            None,
+        )
+    } else {
+        // delete closed, open limit orders
+        let initial_conditional = open_positions::position_id
+            .eq(position_ids[0].to_string());
+        let mut conditions = Box::new(initial_conditional)
+            as Box<dyn BoxableExpression<open_positions::table, Pg, SqlType = Bool>>;
+        for index in 1..position_ids.len() {
+            let position_id = position_ids[index].to_string();
+            let new_condition = open_positions::position_id
+                .eq(position_id);
+            conditions = Box::new(conditions.or(new_condition));
+        }
+        (
+            diesel::delete(open_positions::table).filter(conditions),
+            None,
+        )
+    }
+}
+
+fn delete_open_tpsls_query(
+    items_to_insert: Vec<ClosedTpsl>,
+) -> (
+    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
+    Option<&'static str>,
+) {
+    use schema::open_tpsls;
+    let position_ids: Vec<String> = items_to_insert
+        .iter()
+        .map(|x| x.position_id.clone())
+        .collect();
+
+    if items_to_insert.is_empty() {
+        // empty query
+        let conditions =
+            Box::new(open_tpsls::position_id.eq(String::from("INVALID ADDRESS")))
+                as Box<dyn BoxableExpression<open_tpsls::table, Pg, SqlType = Bool>>;
+        (
+            diesel::delete(open_tpsls::table).filter(conditions),
+            None,
+        )
+    } else {
+        // delete closed, open limit orders
+        let initial_conditional = open_tpsls::position_id
+            .eq(position_ids[0].to_string());
+        let mut conditions = Box::new(initial_conditional)
+            as Box<dyn BoxableExpression<open_tpsls::table, Pg, SqlType = Bool>>;
+        for index in 1..position_ids.len() {
+            let position_id = position_ids[index].to_string();
+            let new_condition = open_tpsls::position_id
+                .eq(position_id);
+            conditions = Box::new(conditions.or(new_condition));
+        }
+        (
+            diesel::delete(open_tpsls::table).filter(conditions),
             None,
         )
     }
