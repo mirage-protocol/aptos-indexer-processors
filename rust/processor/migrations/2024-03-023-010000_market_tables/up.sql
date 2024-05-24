@@ -294,7 +294,8 @@ CREATE TABLE market_activities (
   PRIMARY KEY (
     transaction_version,
     event_creation_number,
-    event_sequence_number
+    event_sequence_number,
+    event_index
   )
 );
 CREATE INDEX market_activities_mid on market_activities (market_id, event_type, event_sequence_number);

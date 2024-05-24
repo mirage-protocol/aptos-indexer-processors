@@ -912,7 +912,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    market_activities (transaction_version, event_creation_number, event_sequence_number) {
+    market_activities (transaction_version, event_creation_number, event_sequence_number, event_index) {
         transaction_version -> Int8,
         event_creation_number -> Int8,
         event_sequence_number -> Int8,
@@ -1507,7 +1507,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    vault_activities (transaction_version, event_creation_number, event_sequence_number) {
+    vault_activities (transaction_version, event_creation_number, event_sequence_number, event_index) {
         transaction_version -> Int8,
         event_creation_number -> Int8,
         event_sequence_number -> Int8,

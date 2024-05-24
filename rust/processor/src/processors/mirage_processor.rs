@@ -360,6 +360,7 @@ fn insert_vault_activities_query(
                 transaction_version,
                 event_creation_number,
                 event_sequence_number,
+                event_index,
             ))
             .do_nothing(),
         None,
@@ -703,6 +704,7 @@ fn insert_market_activities_query(
                 transaction_version,
                 event_creation_number,
                 event_sequence_number,
+                event_index,
             ))
             .do_nothing(),
         None,

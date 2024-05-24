@@ -95,7 +95,8 @@ CREATE TABLE vault_activities (
   PRIMARY KEY (
     transaction_version,
     event_creation_number,
-    event_sequence_number
+    event_sequence_number,
+    event_index
   )
 );
 CREATE INDEX vault_activities_c_id_et_sn on vault_activities (collection_id, event_type, event_sequence_number);
