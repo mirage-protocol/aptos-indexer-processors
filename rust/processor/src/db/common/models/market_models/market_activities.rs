@@ -92,6 +92,7 @@ pub struct Trade {
     pub price: BigDecimal,
     pub fee: BigDecimal,
     pub pnl: BigDecimal,
+    pub event_type: String,
 
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
@@ -364,6 +365,7 @@ impl MarketActivityModel {
                         price: inner.opening_price.clone(),
                         fee: inner.fee.clone(),
                         pnl: BigDecimal::zero(),
+                        event_type: String::from("OpenPositionEvent"),
                         transaction_timestamp: txn_timestamp,
                     });
                     Some(owner_addr)
@@ -415,6 +417,7 @@ impl MarketActivityModel {
                         price: inner.closing_price.clone(),
                         fee: inner.fee.clone(),
                         pnl: inner.winnings.to_bigdecimal(),
+                        event_type: String::from("ClosePositionEvent"),
                         transaction_timestamp: txn_timestamp,
                     });
                     Some(owner_addr)
@@ -544,6 +547,7 @@ impl MarketActivityModel {
                         price: inner.new_opening_price.clone(),
                         fee: inner.fee.clone(),
                         pnl: BigDecimal::zero(),
+                        event_type: String::from("IncreasePositionSizeEvent"),
                         transaction_timestamp: txn_timestamp,
                     });
                     Some(owner_addr)
@@ -595,6 +599,7 @@ impl MarketActivityModel {
                         price: inner.new_opening_price.clone(),
                         fee: inner.fee.clone(),
                         pnl: BigDecimal::zero(),
+                        event_type: String::from("DecreasePositionSizeEvent"),
                         transaction_timestamp: txn_timestamp,
                     });
                     Some(owner_addr)
@@ -636,12 +641,30 @@ impl MarketActivityModel {
                     object_metadatas.get(&inner.position.get_reference_address())
                 {
                     let owner_addr = object_metadata.object.object_core.get_owner_address();
+                    trade = Some(Trade {
+                        transaction_version: txn_version,
+                        market_id: inner.market.get_reference_address(),
+                        position_id: inner.position.get_reference_address(),
+                        owner_addr: owner_addr.clone(),
+                        is_long: true, // TODO
+                        position_size: BigDecimal::zero(),
+                        price: BigDecimal::zero(), // TODO
+                        fee: BigDecimal::zero(), // TODO
+                        pnl: BigDecimal::zero(), // TODO
+                        event_type: String::from("LiquidatePositionEvent"),
+                        transaction_timestamp: txn_timestamp,
+                    });
                     Some(owner_addr)
                 } else {
                     None
                 };
 
-                // LiquidatePosition generates a close position event
+                closed_position = Some(ClosedPosition {
+                    transaction_version: txn_version,
+                    market_id: inner.market.get_reference_address(),
+                    position_id: inner.position.get_reference_address(),
+                    transaction_timestamp: txn_timestamp,
+                });
                 MarketActivityHelper {
                     event_type: String::from("LiquidatePositionEvent"),
                     market_id: inner.market.get_reference_address(),
