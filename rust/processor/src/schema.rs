@@ -1444,6 +1444,7 @@ diesel::table! {
         price -> Numeric,
         fee -> Numeric,
         pnl -> Numeric,
+        event_type -> Varchar,
         transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
     }

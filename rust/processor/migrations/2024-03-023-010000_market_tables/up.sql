@@ -250,6 +250,7 @@ CREATE TABLE trade_datas (
   price NUMERIC NOT NULL,
   fee NUMERIC NOT NULL,
   pnl NUMERIC NOT NULL,
+  event_type VARCHAR NOT NULL,
 
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
