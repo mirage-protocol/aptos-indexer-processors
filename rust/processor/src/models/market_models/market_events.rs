@@ -101,6 +101,20 @@ pub struct DecreasePositionSizeEvent {
 pub struct LiquidatePositionEvent {
     pub market: ResourceReference,
     pub position: ResourceReference,
+    pub is_long: bool,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub position_size: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub closing_price: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub liquidation_fee: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub remaining_maintenance_margin: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub protocol_fee: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub closing_fee: BigDecimal,
+    pub winnings: Signed64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
