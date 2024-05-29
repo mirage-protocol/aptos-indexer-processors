@@ -950,6 +950,7 @@ diesel::table! {
         margin_amount -> Nullable<Numeric>,
         position_size -> Nullable<Numeric>,
         fee -> Nullable<Numeric>,
+        protocol_fee -> Nullable<Numeric>,
         pnl -> Nullable<Numeric>,
         take_profit_price -> Nullable<Numeric>,
         stop_loss_price -> Nullable<Numeric>,

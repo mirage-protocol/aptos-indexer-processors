@@ -279,6 +279,7 @@ CREATE TABLE market_activities (
   margin_amount NUMERIC,
   position_size NUMERIC,
   fee NUMERIC,
+  protocol_fee NUMERIC,
   pnl NUMERIC,
   take_profit_price NUMERIC,
   stop_loss_price NUMERIC,
