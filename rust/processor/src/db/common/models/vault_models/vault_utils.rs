@@ -66,7 +66,7 @@ impl VaultCollection {
         txn_version: i64,
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
-        let type_str = MoveResource::get_outer_type_from_resource(write_resource);
+        let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
         if !VaultModuleResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
             return Ok(None);
         }
@@ -97,7 +97,7 @@ impl Vault {
         txn_version: i64,
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
-        let type_str = MoveResource::get_outer_type_from_resource(write_resource);
+        let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
         if !VaultModuleResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
             return Ok(None);
         }

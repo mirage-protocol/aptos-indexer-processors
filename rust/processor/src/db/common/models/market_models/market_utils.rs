@@ -156,7 +156,7 @@ impl MarketCollection {
         txn_version: i64,
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
-        let type_str = MoveResource::get_outer_type_from_resource(write_resource);
+        let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
         if !MarketResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
             return Ok(None);
         }
@@ -184,7 +184,7 @@ impl Position {
         txn_version: i64,
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
-        let type_str = MoveResource::get_outer_type_from_resource(write_resource);
+        let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
         if !MarketResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
             return Ok(None);
         }
@@ -212,7 +212,7 @@ impl LimitOrders {
         txn_version: i64,
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
-        let type_str = MoveResource::get_outer_type_from_resource(write_resource);
+        let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
         if !MarketResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
             return Ok(None);
         }
@@ -240,7 +240,7 @@ impl TpSl {
         txn_version: i64,
         mirage_module_address: &str
     ) -> anyhow::Result<Option<Self>> {
-        let type_str = MoveResource::get_outer_type_from_resource(write_resource);
+        let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
         if !MarketResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
             return Ok(None);
         }
