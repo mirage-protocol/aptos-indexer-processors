@@ -1565,8 +1565,8 @@ diesel::table! {
         #[max_length = 66]
         borrow_token_id -> Varchar,
         interest_per_second -> Numeric,
+        initial_collateralization_rate -> Numeric,
         maintenance_collateralization_rate -> Numeric,
-        liquidation_collateralization_rate -> Numeric,
         liquidation_multiplier -> Numeric,
         borrow_fee -> Numeric,
         protocol_liquidation_fee -> Numeric,

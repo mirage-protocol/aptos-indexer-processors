@@ -91,7 +91,7 @@ pub struct DecreasePositionSizeEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub amount: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
-    pub new_opening_price: BigDecimal,
+    pub closing_price: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub fee: BigDecimal,
 }

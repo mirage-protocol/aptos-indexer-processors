@@ -31,8 +31,8 @@ pub struct VaultConfigModel {
     pub borrow_token_id: String,
 
     pub interest_per_second: BigDecimal,
+    pub initial_collateralization_rate: BigDecimal,
     pub maintenance_collateralization_rate: BigDecimal,
-    pub liquidation_collateralization_rate: BigDecimal,
     pub liquidation_multiplier: BigDecimal,
     pub borrow_fee: BigDecimal,
     pub protocol_liquidation_fee: BigDecimal,
@@ -124,13 +124,13 @@ impl VaultCollectionModel {
                     collateral_token_id: inner.collateral_token.get_reference_address(),
                     borrow_token_id: inner.borrow_token.get_reference_address(),
                     interest_per_second: inner.config.interest_per_second.clone(),
+                    initial_collateralization_rate: inner
+                        .config
+                        .initial_collateralization_rate
+                        .clone(),
                     maintenance_collateralization_rate: inner
                         .config
                         .maintenance_collateralization_rate
-                        .clone(),
-                    liquidation_collateralization_rate: inner
-                        .config
-                        .liquidation_collateralization_rate
                         .clone(),
                     liquidation_multiplier: inner.config.liquidation_multiplier.clone(),
                     borrow_fee: inner.config.borrow_fee.clone(),
