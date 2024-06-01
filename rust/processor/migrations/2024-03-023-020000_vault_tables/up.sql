@@ -10,8 +10,8 @@ CREATE TABLE vault_collection_configs (
   borrow_token_id VARCHAR(66) NOT NULL,
 
   interest_per_second NUMERIC NOT NULL,
+  initial_collateralization_rate NUMERIC NOT NULL,
   maintenance_collateralization_rate NUMERIC NOT NULL,
-  liquidation_collateralization_rate NUMERIC NOT NULL,
   liquidation_multiplier NUMERIC NOT NULL,
   borrow_fee NUMERIC NOT NULL,
   protocol_liquidation_fee NUMERIC NOT NULL,

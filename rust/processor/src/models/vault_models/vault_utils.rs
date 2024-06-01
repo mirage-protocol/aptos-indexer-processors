@@ -18,9 +18,9 @@ pub struct VaultCollectionConfig {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub interest_per_second: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
-    pub maintenance_collateralization_rate: BigDecimal,
+    pub initial_collateralization_rate: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
-    pub liquidation_collateralization_rate: BigDecimal,
+    pub maintenance_collateralization_rate: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub liquidation_multiplier: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
