@@ -978,6 +978,8 @@ pub async fn parse_mirage_protocol(
                                 fungible_asset_supply: None,
                                 fungible_asset_store: None,
                                 token_identifier: None,
+                                concurrent_fungible_asset_balance: None,
+                                concurrent_fungible_asset_supply: None,
                             },
                         );
                     }
