@@ -208,14 +208,14 @@ impl PositionModel {
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         if let Some(inner) = &Position::from_write_resource(write_resource, txn_version, mirage_module_address)? {
-            let asset_type = standardize_address(&write_resource.address.to_string());
-            if let Some(object_metadata) = object_metadatas.get(&asset_type) {
+            let position_id = standardize_address(&write_resource.address.to_string());
+            if let Some(object_metadata) = object_metadatas.get(&position_id) {
                 return Ok(Some(Self {
                     transaction_version: txn_version,
                     write_set_change_index,
                     owner_addr: object_metadata.object.object_core.get_owner_address(),
                     market_id: inner.market.get_reference_address(),
-                    position_id: write_resource.address.clone(),
+                    position_id,
                     opening_price: inner.opening_price.clone(),
                     is_long: inner.is_long,
                     margin_amount: inner.margin_amount.clone(),
@@ -242,14 +242,14 @@ impl TpSlModel {
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         if let Some(inner) = &TpSl::from_write_resource(write_resource, txn_version, mirage_module_address)? {
-            let asset_type = standardize_address(&write_resource.address.to_string());
-            if let Some(object_metadata) = object_metadatas.get(&asset_type) {
+            let position_id = standardize_address(&write_resource.address.to_string());
+            if let Some(object_metadata) = object_metadatas.get(&position_id) {
                 return Ok(Some(Self {
                     transaction_version: txn_version,
                     write_set_change_index,
                     owner_addr: object_metadata.object.object_core.get_owner_address(),
                     market_id: inner.market.get_reference_address(),
-                    position_id: write_resource.address.clone(),
+                    position_id,
                     take_profit_price: inner.take_profit_price.clone(),
                     stop_loss_price: inner.stop_loss_price.clone(),
                     trigger_payment_amount: inner.trigger_payment_amount.clone(),
@@ -298,8 +298,8 @@ impl LimitOrderModel {
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Vec<LimitOrderModel>>> {
         if let Some(inner) = &LimitOrders::from_write_resource(write_resource, txn_version, mirage_module_address)? {
-            let asset_type = standardize_address(&write_resource.address.to_string());
-            if let Some(object_metadata) = object_metadatas.get(&asset_type) {
+            let position_id = standardize_address(&write_resource.address.to_string());
+            if let Some(object_metadata) = object_metadatas.get(&position_id) {
                 let mut result = Vec::new();
                 result.reserve_exact(inner.orders.len());
 
@@ -309,7 +309,7 @@ impl LimitOrderModel {
                         write_set_change_index,
                         owner_addr: object_metadata.object.object_core.get_owner_address(),
                         market_id: inner.market.get_reference_address(),
-                        position_id: write_resource.address.clone(),
+                        position_id: position_id.clone(),
                         limit_order_id: order.id.clone(),
                         is_increase: order.is_increase,
                         position_size: order.position_size.clone(),

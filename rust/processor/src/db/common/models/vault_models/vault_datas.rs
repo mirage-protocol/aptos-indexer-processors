@@ -153,14 +153,14 @@ impl VaultModel {
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         if let Some(inner) = &Vault::from_write_resource(write_resource, txn_version, mirage_module_address)? {
-            let asset_type = standardize_address(&write_resource.address.to_string());
-            if let Some(object_metadata) = object_metadatas.get(&asset_type) {
+            let vault_id = standardize_address(&write_resource.address.to_string());
+            if let Some(object_metadata) = object_metadatas.get(&vault_id) {
                 return Ok(Some(Self {
                     transaction_version: txn_version,
                     write_set_change_index,
                     owner_addr: object_metadata.object.object_core.get_owner_address(),
                     collection_id: inner.collection.get_reference_address(),
-                    vault_id: write_resource.address.clone(),
+                    vault_id,
                     collateral_amount: inner.collateral_amount.clone(),
                     borrow_part: inner.borrow_part.amount.clone(),
                     transaction_timestamp: txn_timestamp,
