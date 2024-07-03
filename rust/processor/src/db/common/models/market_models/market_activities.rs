@@ -7,13 +7,13 @@
 use super::market_events::MarketEvent;
 use crate::{
     db::common::models::object_models::v2_object_utils::ObjectAggregatedDataMapping,
+    utils::util::parse_timestamp,
     schema::{closed_limit_orders, market_activities, open_positions, closed_positions, open_tpsls, closed_tpsls, open_limit_orders, trade_datas},
 };
 use aptos_protos::transaction::v1::{
     transaction::TxnData, Event as EventPB, Transaction as TransactionPB,
 };
 use bigdecimal::{BigDecimal, Zero};
-use chrono::NaiveDateTime;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
@@ -213,10 +213,8 @@ impl MarketActivityModel {
         let txn_timestamp = transaction
             .timestamp
             .as_ref()
-            .expect("Transaction timestamp doesn't exist!")
-            .seconds;
-        let txn_timestamp =
-            NaiveDateTime::from_timestamp_opt(txn_timestamp, 0).expect("Txn Timestamp is invalid!");
+            .expect("Transaction timestamp doesn't exist!");
+         let txn_timestamp = parse_timestamp(txn_timestamp, txn_version);
 
         for (index, event) in events.iter().enumerate() {
             let maybe_market_event = MarketEvent::from_event(event, txn_version, mirage_module_address).unwrap();

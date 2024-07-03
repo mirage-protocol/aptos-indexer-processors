@@ -7,12 +7,12 @@
 use super::vault_events::VaultEvent;
 use crate::{
     db::common::models::object_models::v2_object_utils::ObjectAggregatedDataMapping, schema::vault_activities,
+    utils::util::parse_timestamp,
 };
 use aptos_protos::transaction::v1::{
     transaction::TxnData, Event as EventPB, Transaction as TransactionPB,
 };
 use bigdecimal::BigDecimal;
-use chrono::NaiveDateTime;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
@@ -83,10 +83,8 @@ impl VaultActivityModel {
         let txn_timestamp = transaction
             .timestamp
             .as_ref()
-            .expect("Transaction timestamp doesn't exist!")
-            .seconds;
-        let txn_timestamp =
-            NaiveDateTime::from_timestamp_opt(txn_timestamp, 0).expect("Txn Timestamp is invalid!");
+            .expect("Transaction timestamp doesn't exist!");
+        let txn_timestamp = parse_timestamp(txn_timestamp, txn_version);
 
         for (index, event) in events.iter().enumerate() {
             let maybe_vault_event = VaultEvent::from_event(event, txn_version, mirage_module_address).unwrap();
