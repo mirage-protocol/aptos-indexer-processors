@@ -10,7 +10,7 @@ homepage = "https://aptoslabs.com"
 license = "Apache-2.0"
 publish = false
 repository = "https://github.com/aptos-labs/aptos-indexer-processors"
-rust-version = "1.77"
+rust-version = "1.75"
 
 [workspace.dependencies]
 processor = { path = "processor" }
@@ -33,7 +33,7 @@ clap = { version = "4.3.5", features = ["derive", "unstable-styles"] }
 # Do NOT enable the postgres feature here, it is conditionally enabled in a feature
 # block in the Cargo.toml file for the processor crate.
 # https://github.com/aptos-labs/aptos-indexer-processors/pull/325
-diesel = { version = "2.1.5", features = [
+diesel = { version = "2.1", features = [
     "chrono",
     "postgres_backend",
     "numeric",

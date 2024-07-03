@@ -1,6 +1,6 @@
 // Copyright © Mirage Protocol
 
-use super::{ProcessingResult, ProcessorName, ProcessorTrait};
+use super::{ProcessorName, ProcessorTrait};
 use crate::{
     models::{
        market_models::{
@@ -18,6 +18,7 @@ use crate::{
             vault_datas::{VaultCollectionModel, VaultConfigModel, VaultModel},
         },
     },
+    indexer::{processing_result::ProcessingResult},
     schema,
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,

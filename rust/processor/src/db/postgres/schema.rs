@@ -488,7 +488,6 @@ diesel::table! {
         last_transaction_version -> Int8,
         is_deleted -> Bool,
         inserted_at -> Timestamp,
-        untransferrable -> Bool,
     }
 }
 
@@ -659,20 +658,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    current_token_royalty_v1 (token_data_id) {
-        #[max_length = 66]
-        token_data_id -> Varchar,
-        #[max_length = 66]
-        payee_address -> Varchar,
-        royalty_points_numerator -> Numeric,
-        royalty_points_denominator -> Numeric,
-        last_transaction_version -> Int8,
-        last_transaction_timestamp -> Timestamp,
-        inserted_at -> Timestamp,
-    }
-}
-
-diesel::table! {
     current_token_v2_metadata (object_address, resource_type) {
         #[max_length = 66]
         object_address -> Varchar,
@@ -687,15 +672,15 @@ diesel::table! {
 }
 
 diesel::table! {
-    current_unified_fungible_asset_balances_to_be_renamed (storage_id) {
+    current_unified_fungible_asset_balances (storage_id) {
         #[max_length = 66]
         storage_id -> Varchar,
         #[max_length = 66]
         owner_address -> Varchar,
         #[max_length = 66]
-        asset_type_v2 -> Nullable<Varchar>,
+        asset_type -> Varchar,
         #[max_length = 1000]
-        asset_type_v1 -> Nullable<Varchar>,
+        coin_type -> Nullable<Varchar>,
         is_primary -> Nullable<Bool>,
         is_frozen -> Bool,
         amount_v1 -> Nullable<Numeric>,
@@ -708,10 +693,6 @@ diesel::table! {
         last_transaction_timestamp_v2 -> Nullable<Timestamp>,
         last_transaction_timestamp -> Nullable<Timestamp>,
         inserted_at -> Timestamp,
-        #[max_length = 1000]
-        asset_type -> Nullable<Varchar>,
-        #[max_length = 10]
-        token_standard -> Nullable<Varchar>,
     }
 }
 
@@ -1101,7 +1082,6 @@ diesel::table! {
         allow_ungated_transfer -> Bool,
         is_deleted -> Bool,
         inserted_at -> Timestamp,
-        untransferrable -> Bool,
     }
 }
 
@@ -1675,9 +1655,8 @@ diesel::allow_tables_to_appear_in_same_query!(
     current_token_ownerships,
     current_token_ownerships_v2,
     current_token_pending_claims,
-    current_token_royalty_v1,
     current_token_v2_metadata,
-    current_unified_fungible_asset_balances_to_be_renamed,
+    current_unified_fungible_asset_balances,
     delegated_staking_activities,
     delegated_staking_pool_balances,
     delegated_staking_pools,
