@@ -6,7 +6,7 @@
 #![allow(clippy::unused_unit)]
 
 use crate::{
-    models::{
+    db::common::models::{
         object_models::v2_object_utils::ObjectAggregatedDataMapping,
         vault_models::vault_utils::{Vault, VaultCollection},
     },

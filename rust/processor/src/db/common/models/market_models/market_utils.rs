@@ -5,7 +5,7 @@
 #![allow(clippy::extra_unused_lifetimes)]
 
 use crate::{
-    models::{
+    db::common::models::{
         default_models::move_resources::MoveResource, signed64::Signed64,
         token_v2_models::v2_token_utils::ResourceReference,
     },

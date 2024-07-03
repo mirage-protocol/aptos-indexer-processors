@@ -6,7 +6,7 @@
 
 use super::vault_events::VaultEvent;
 use crate::{
-    models::object_models::v2_object_utils::ObjectAggregatedDataMapping, schema::vault_activities,
+    db::common::models::object_models::v2_object_utils::ObjectAggregatedDataMapping, schema::vault_activities,
 };
 use aptos_protos::transaction::v1::{
     transaction::TxnData, Event as EventPB, Transaction as TransactionPB,

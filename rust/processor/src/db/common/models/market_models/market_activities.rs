@@ -6,7 +6,7 @@
 
 use super::market_events::MarketEvent;
 use crate::{
-    models::object_models::v2_object_utils::ObjectAggregatedDataMapping,
+    db::common::models::object_models::v2_object_utils::ObjectAggregatedDataMapping,
     schema::{closed_limit_orders, market_activities, open_positions, closed_positions, open_tpsls, closed_tpsls, open_limit_orders, trade_datas},
 };
 use aptos_protos::transaction::v1::{

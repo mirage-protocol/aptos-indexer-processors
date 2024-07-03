@@ -6,7 +6,7 @@
 #![allow(clippy::unused_unit)]
 
 use crate::{
-    models::mirage_models::mirage_utils::MirageDebtStore, schema::mirage_debt_store_datas,
+    db::common::models::mirage_models::mirage_utils::MirageDebtStore, schema::mirage_debt_store_datas,
     utils::util::standardize_address,
 };
 use aptos_protos::transaction::v1::WriteResource;

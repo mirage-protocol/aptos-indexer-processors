@@ -7,7 +7,7 @@
  * This file defines deserialized vault_events module types as defined in mirage protocol module.
  */
 use crate::{
-    models::{token_v2_models::v2_token_utils::ResourceReference},
+    db::common::models::{token_v2_models::v2_token_utils::ResourceReference},
     utils::util::deserialize_from_string,
 };
 use anyhow::Context;

@@ -7,7 +7,7 @@
  * This file defines deserialized market_events module types as defined in mirage protocol module.
  */
 use crate::{
-    models::{signed64::Signed64, token_v2_models::v2_token_utils::ResourceReference},
+    db::common::models::{signed64::Signed64, token_v2_models::v2_token_utils::ResourceReference},
     utils::util::deserialize_from_string,
 };
 use anyhow::{Context, Result};

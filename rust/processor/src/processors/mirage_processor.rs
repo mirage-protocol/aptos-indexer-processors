@@ -1,8 +1,8 @@
 // Copyright © Mirage Protocol
 
-use super::{ProcessorName, ProcessorTrait};
+use super::{ProcessorName, ProcessorTrait, DefaultProcessingResult};
 use crate::{
-    models::{
+    db::common::models::{
        market_models::{
             market_activities::{ClosedLimitOrder, ClosedPosition, ClosedTpsl, MarketActivityModel, OpenLimitOrder, OpenPosition, OpenTpsl, Trade},
             market_datas::{
@@ -18,13 +18,13 @@ use crate::{
             vault_datas::{VaultCollectionModel, VaultConfigModel, VaultModel},
         },
     },
-    indexer::{processing_result::ProcessingResult},
     schema,
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
-        database::{execute_in_chunks, get_config_table_chunk_size, PgDbPool},
+        database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
         util::{parse_timestamp, standardize_address},
     },
+    gap_detectors::ProcessingResult,
 };
 use ahash::AHashMap;
 use anyhow::bail;
@@ -48,14 +48,14 @@ pub struct MirageProcessorConfig {
 }
 
 pub struct MirageProcessor {
-    connection_pool: PgDbPool,
+    connection_pool: ArcDbPool,
     config: MirageProcessorConfig,
     per_table_chunk_sizes: AHashMap<String, usize>,
 }
 
 impl MirageProcessor {
     pub fn new(
-        connection_pool: PgDbPool,
+        connection_pool: ArcDbPool,
         config: MirageProcessorConfig,
         per_table_chunk_sizes: AHashMap<String, usize>,
     ) -> Self {
@@ -79,7 +79,7 @@ impl Debug for MirageProcessor {
 }
 
 pub async fn insert_to_db(
-    conn: PgDbPool,
+    conn: ArcDbPool,
     name: &'static str,
     start_version: u64,
     end_version: u64,
@@ -851,13 +851,15 @@ impl ProcessorTrait for MirageProcessor {
 
         let db_insertion_duration_in_secs = db_insertion_start.elapsed().as_secs_f64();
         match tx_result {
-            Ok(_) => Ok(ProcessingResult {
-                start_version,
-                end_version,
-                processing_duration_in_secs,
-                db_insertion_duration_in_secs,
-                last_transaction_timestamp,
-            }),
+            Ok(_) => Ok(ProcessingResult::DefaultProcessingResult(
+                DefaultProcessingResult {
+                    start_version,
+                    end_version,
+                    processing_duration_in_secs,
+                    db_insertion_duration_in_secs,
+                    last_transaction_timestamp,
+                },
+            )),
             Err(err) => {
                 error!(
                     start_version = start_version,
@@ -869,9 +871,10 @@ impl ProcessorTrait for MirageProcessor {
                 bail!(format!("Error inserting transactions to db. Processor {}. Start {}. End {}. Error {:?}", self.name(), start_version, end_version, err))
             },
         }
+
     }
 
-    fn connection_pool(&self) -> &PgDbPool {
+    fn connection_pool(&self) -> &ArcDbPool {
         &self.connection_pool
     }
 }
@@ -981,6 +984,7 @@ pub async fn parse_mirage_protocol(
                                 token_identifier: None,
                                 concurrent_fungible_asset_balance: None,
                                 concurrent_fungible_asset_supply: None,
+                                untransferable: None,
                             },
                         );
                     }

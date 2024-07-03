@@ -7,7 +7,7 @@
 
 use super::market_utils::{LimitOrders, MarketCollection};
 use crate::{
-    models::{
+    db::common::models::{
         market_models::market_utils::{Position, TpSl},
         object_models::v2_object_utils::ObjectAggregatedDataMapping,
     },

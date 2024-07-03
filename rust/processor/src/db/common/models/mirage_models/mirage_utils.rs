@@ -5,7 +5,7 @@
 #![allow(clippy::extra_unused_lifetimes)]
 
 use crate::{
-    models::{default_models::move_resources::MoveResource, rebase::Rebase},
+    db::common::models::{default_models::move_resources::MoveResource, rebase::Rebase},
     utils::util::deserialize_from_string,
 };
 use anyhow::{Context, Result};
