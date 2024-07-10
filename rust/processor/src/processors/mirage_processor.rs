@@ -362,7 +362,7 @@ fn insert_vault_activities_query(
                 event_sequence_number,
                 event_index,
             ))
-            .do_update(),
+            .do_nothing(),
         None,
     )
 }
@@ -379,7 +379,7 @@ fn insert_market_collection_datas_query(
         diesel::insert_into(schema::market_datas::table)
             .values(items_to_insert)
             .on_conflict((transaction_version, write_set_change_index))
-            .do_update(),
+            .do_nothing(),
         None,
     )
 }
@@ -396,7 +396,7 @@ fn insert_market_configs_query(
         diesel::insert_into(schema::market_configs::table)
             .values(items_to_insert)
             .on_conflict((transaction_version, write_set_change_index))
-            .do_update(),
+            .do_nothing(),
         None,
     )
 }
@@ -413,7 +413,7 @@ fn insert_position_datas_configs_query(
         diesel::insert_into(schema::position_datas::table)
             .values(items_to_insert)
             .on_conflict((transaction_version, write_set_change_index))
-            .do_update(),
+            .do_nothing(),
         None,
     )
 }
@@ -430,7 +430,7 @@ fn insert_tpsl_datas_configs_query(
         diesel::insert_into(schema::tpsl_datas::table)
             .values(items_to_insert)
             .on_conflict((transaction_version, write_set_change_index))
-            .do_update(),
+            .do_nothing(),
         None,
     )
 }
@@ -446,7 +446,7 @@ fn insert_trade_datas_query(
         diesel::insert_into(schema::trade_datas::table)
             .values(items_to_insert)
             .on_conflict((position_id, transaction_version))
-            .do_update(),
+            .do_nothing(),
         None,
     )
 }
@@ -483,7 +483,7 @@ fn insert_closed_positions_query(
         diesel::insert_into(schema::closed_positions::table)
             .values(items_to_insert)
             .on_conflict(position_id)
-            .do_update(),
+            .do_nothing(),
         None,
     )
 }
