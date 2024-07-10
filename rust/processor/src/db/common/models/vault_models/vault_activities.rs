@@ -6,8 +6,8 @@
 
 use super::vault_events::VaultEvent;
 use crate::{
-    db::common::models::object_models::v2_object_utils::ObjectAggregatedDataMapping, schema::vault_activities,
-    utils::util::parse_timestamp,
+    schema::vault_activities,
+    utils::util::{parse_timestamp, ObjectOwnerMapping},
 };
 use aptos_protos::transaction::v1::{
     transaction::TxnData, Event as EventPB, Transaction as TransactionPB,
@@ -62,7 +62,7 @@ struct VaultActivityHelper {
 impl VaultActivityModel {
     pub fn from_transaction(
         transaction: &TransactionPB,
-        object_metadatas: &ObjectAggregatedDataMapping,
+        object_owners: &ObjectOwnerMapping,
         mirage_module_address: &str,
     ) -> Vec<Self> {
         let mut vault_activities: Vec<VaultActivityModel> = Vec::new();
@@ -96,7 +96,7 @@ impl VaultActivityModel {
                     txn_version,
                     txn_timestamp,
                     index as i64,
-                    object_metadatas,
+                    object_owners,
                 ));
             }
         }
@@ -109,22 +109,20 @@ impl VaultActivityModel {
         txn_version: i64,
         txn_timestamp: chrono::NaiveDateTime,
         event_index: i64,
-        object_metadatas: &ObjectAggregatedDataMapping,
+        object_owners: &ObjectOwnerMapping,
     ) -> Self {
         let event_creation_number = event.key.as_ref().unwrap().creation_number as i64;
         let event_sequence_number = event.sequence_number as i64;
 
         let vault_activity_helper = match parsed_event {
             VaultEvent::AddCollateralEvent(inner) => {
-                let owner_addr = object_metadatas
-                    .get(&inner.vault.get_reference_address())
-                    .map(|object_metadata| object_metadata.object.object_core.get_owner_address());
+                let owner_addr = object_owners.get(&inner.vault.get_reference_address());
 
                 VaultActivityHelper {
                     event_type: String::from("AddCollateralEvent"),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id: Some(inner.vault.get_reference_address()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     collateral_amount: Some(inner.collateral_amount.clone()),
                     borrow_amount: None,
                     fee_amount: None,
@@ -135,15 +133,13 @@ impl VaultActivityModel {
                 }
             },
             VaultEvent::RemoveCollateralEvent(inner) => {
-                let owner_addr = object_metadatas
-                    .get(&inner.vault.get_reference_address())
-                    .map(|object_metadata| object_metadata.object.object_core.get_owner_address());
+                let owner_addr = object_owners.get(&inner.vault.get_reference_address());
 
                 VaultActivityHelper {
                     event_type: String::from("RemoveCollateralEvent"),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id: Some(inner.vault.get_reference_address()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     collateral_amount: Some(inner.collateral_amount.clone()),
                     borrow_amount: None,
                     fee_amount: None,
@@ -154,15 +150,13 @@ impl VaultActivityModel {
                 }
             },
             VaultEvent::BorrowEvent(inner) => {
-                let owner_addr = object_metadatas
-                    .get(&inner.vault.get_reference_address())
-                    .map(|object_metadata| object_metadata.object.object_core.get_owner_address());
+                let owner_addr = object_owners.get(&inner.vault.get_reference_address());
 
                 VaultActivityHelper {
                     event_type: String::from("BorrowEvent"),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id: Some(inner.vault.get_reference_address()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     collateral_amount: None,
                     borrow_amount: Some(inner.borrow_amount.clone()),
                     fee_amount: Some(inner.fee_amount.clone()),
@@ -173,15 +167,13 @@ impl VaultActivityModel {
                 }
             },
             VaultEvent::RepayEvent(inner) => {
-                let owner_addr = object_metadatas
-                    .get(&inner.vault.get_reference_address())
-                    .map(|object_metadata| object_metadata.object.object_core.get_owner_address());
+                let owner_addr = object_owners.get(&inner.vault.get_reference_address());
 
                 VaultActivityHelper {
                     event_type: String::from("RepayEvent"),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id: Some(inner.vault.get_reference_address()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     collateral_amount: None,
                     borrow_amount: Some(inner.borrow_amount.clone()),
                     fee_amount: Some(inner.fee_amount.clone()),
@@ -192,15 +184,13 @@ impl VaultActivityModel {
                 }
             },
             VaultEvent::LiquidationEvent(inner) => {
-                let owner_addr = object_metadatas
-                    .get(&inner.vault.get_reference_address())
-                    .map(|object_metadata| object_metadata.object.object_core.get_owner_address());
+                let owner_addr = object_owners.get(&inner.vault.get_reference_address());
 
                 VaultActivityHelper {
                     event_type: String::from("LiquidationEvent"),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id: Some(inner.vault.get_reference_address()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     collateral_amount: Some(inner.collateral_amount.clone()),
                     borrow_amount: Some(inner.borrow_amount.clone()),
                     fee_amount: Some(inner.protocol_liquidation_fee.clone()),

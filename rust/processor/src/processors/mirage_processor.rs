@@ -10,9 +10,8 @@ use crate::{
             },
         },
         mirage_models::{fee_store::FeeStoreModel, mirage_debt_store::MirageDebtStoreModel},
-        object_models::v2_object_utils::{
-            ObjectAggregatedData, ObjectAggregatedDataMapping, ObjectWithMetadata,
-        },
+        object_models::v2_object_utils::ObjectWithMetadata,
+        token_v2_models::v2_token_utils::V2TokenEvent,
         vault_models::{
             vault_activities::VaultActivityModel,
             vault_datas::{VaultCollectionModel, VaultConfigModel, VaultModel},
@@ -22,7 +21,7 @@ use crate::{
     utils::{
         counters::PROCESSOR_UNKNOWN_TYPE_COUNT,
         database::{execute_in_chunks, get_config_table_chunk_size, ArcDbPool},
-        util::{parse_timestamp, standardize_address},
+        util::{parse_timestamp, standardize_address, ObjectOwnerMapping},
     },
     gap_detectors::ProcessingResult,
 };
@@ -363,7 +362,7 @@ fn insert_vault_activities_query(
                 event_sequence_number,
                 event_index,
             ))
-            .do_nothing(),
+            .do_update(),
         None,
     )
 }
@@ -380,7 +379,7 @@ fn insert_market_collection_datas_query(
         diesel::insert_into(schema::market_datas::table)
             .values(items_to_insert)
             .on_conflict((transaction_version, write_set_change_index))
-            .do_nothing(),
+            .do_update(),
         None,
     )
 }
@@ -397,7 +396,7 @@ fn insert_market_configs_query(
         diesel::insert_into(schema::market_configs::table)
             .values(items_to_insert)
             .on_conflict((transaction_version, write_set_change_index))
-            .do_nothing(),
+            .do_update(),
         None,
     )
 }
@@ -414,7 +413,7 @@ fn insert_position_datas_configs_query(
         diesel::insert_into(schema::position_datas::table)
             .values(items_to_insert)
             .on_conflict((transaction_version, write_set_change_index))
-            .do_nothing(),
+            .do_update(),
         None,
     )
 }
@@ -431,7 +430,7 @@ fn insert_tpsl_datas_configs_query(
         diesel::insert_into(schema::tpsl_datas::table)
             .values(items_to_insert)
             .on_conflict((transaction_version, write_set_change_index))
-            .do_nothing(),
+            .do_update(),
         None,
     )
 }
@@ -447,7 +446,7 @@ fn insert_trade_datas_query(
         diesel::insert_into(schema::trade_datas::table)
             .values(items_to_insert)
             .on_conflict((position_id, transaction_version))
-            .do_nothing(),
+            .do_update(),
         None,
     )
 }
@@ -484,7 +483,7 @@ fn insert_closed_positions_query(
         diesel::insert_into(schema::closed_positions::table)
             .values(items_to_insert)
             .on_conflict(position_id)
-            .do_nothing(),
+            .do_update(),
         None,
     )
 }
@@ -906,7 +905,7 @@ pub async fn parse_mirage_protocol(
     // Get Metadata for token v2 by object
     // We want to persist this through the entire batch so that even if a token is burned,
     // we can still get the object core metadata for it
-    let mut token_v2_metadata_helper: ObjectAggregatedDataMapping = AHashMap::new();
+    let mut object_owners: ObjectOwnerMapping = AHashMap::new();
 
     let mut mirage_debt_stores = vec![];
     let mut fee_stores = vec![];
@@ -956,37 +955,28 @@ pub async fn parse_mirage_protocol(
             },
         };
 
-        if let TxnData::User(_) = txn_data {
+        if let TxnData::User(txn_inner) = txn_data {
             let txn_version = txn.version as i64;
             let txn_timestamp = parse_timestamp(txn.timestamp.as_ref().unwrap(), txn_version);
             let transaction_info = txn.info.as_ref().expect("Transaction info doesn't exist!");
 
-            // Need to do a first pass to get all the objects
+
+            // First pass to get all the object owners from the write_set
             for wsc in transaction_info.changes.iter() {
                 if let Change::WriteResource(wr) = wsc.change.as_ref().unwrap() {
                     if let Some(object) =
                         ObjectWithMetadata::from_write_resource(wr, txn_version).unwrap()
                     {
-                        token_v2_metadata_helper.insert(
-                            standardize_address(&wr.address.to_string()),
-                            ObjectAggregatedData {
-                                aptos_collection: None,
-                                fixed_supply: None,
-                                object,
-                                unlimited_supply: None,
-                                concurrent_supply: None,
-                                property_map: None,
-                                transfer_events: vec![],
-                                token: None,
-                                fungible_asset_metadata: None,
-                                fungible_asset_supply: None,
-                                fungible_asset_store: None,
-                                token_identifier: None,
-                                concurrent_fungible_asset_balance: None,
-                                concurrent_fungible_asset_supply: None,
-                                untransferable: None,
-                            },
-                        );
+                        object_owners.insert(standardize_address(&wr.address.to_string()), object.object_core.get_owner_address());
+                    }
+                }
+            }
+
+            // Second pass to get all the object owners from Token burn events
+            for event in txn_inner.events.iter() {
+                if let Ok(Some(V2TokenEvent::Burn(burn_event))) = V2TokenEvent::from_event(event.type_str.as_str(), &event.data, txn_version) {
+                    if let Some(previous_owner_address) = burn_event.get_previous_owner_address() {
+                        object_owners.insert(burn_event.get_token_address(), previous_owner_address);
                     }
                 }
             }
@@ -1054,7 +1044,7 @@ pub async fn parse_mirage_protocol(
                         txn_version,
                         wsc_index,
                         txn_timestamp,
-                        &token_v2_metadata_helper,
+                        &object_owners,
                         mirage_module_address,
                     )
                     .unwrap()
@@ -1086,7 +1076,7 @@ pub async fn parse_mirage_protocol(
                         txn_version,
                         wsc_index,
                         txn_timestamp,
-                        &token_v2_metadata_helper,
+                        &object_owners,
                         mirage_module_address,
                     )
                     .unwrap()
@@ -1098,7 +1088,7 @@ pub async fn parse_mirage_protocol(
                         txn_version,
                         wsc_index,
                         txn_timestamp,
-                        &token_v2_metadata_helper,
+                        &object_owners,
                         mirage_module_address,
                     )
                     .unwrap()
@@ -1110,7 +1100,7 @@ pub async fn parse_mirage_protocol(
                         txn_version,
                         wsc_index,
                         txn_timestamp,
-                        &token_v2_metadata_helper,
+                        &object_owners,
                         mirage_module_address,
                     )
                     .unwrap()
@@ -1122,7 +1112,7 @@ pub async fn parse_mirage_protocol(
 
             // process events
             let mut vault_activities =
-                VaultActivityModel::from_transaction(txn, &token_v2_metadata_helper, mirage_module_address);
+                VaultActivityModel::from_transaction(txn, &object_owners, mirage_module_address);
             let (
                 mut trades,
                 open_positions,
@@ -1132,7 +1122,7 @@ pub async fn parse_mirage_protocol(
                 open_limit_orders,
                 mut closed_limit_orders,
                 mut market_activities,
-            ) = MarketActivityModel::from_transaction(txn, &token_v2_metadata_helper, mirage_module_address);
+            ) = MarketActivityModel::from_transaction(txn, &object_owners, mirage_module_address);
 
             update_latest(&mut all_open_positions, open_positions, |pos| pos.position_id.clone());
             update_latest(&mut all_open_limit_orders, open_limit_orders, |pos| (pos.position_id.clone(), pos.limit_order_id.to_u64().expect("invalid limit order id")));

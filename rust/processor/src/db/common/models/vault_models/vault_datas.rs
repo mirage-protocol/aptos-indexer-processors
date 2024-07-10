@@ -6,12 +6,9 @@
 #![allow(clippy::unused_unit)]
 
 use crate::{
-    db::common::models::{
-        object_models::v2_object_utils::ObjectAggregatedDataMapping,
-        vault_models::vault_utils::{Vault, VaultCollection},
-    },
+    db::common::models::vault_models::vault_utils::{Vault, VaultCollection},
     schema::{vault_collection_configs, vault_collection_datas, vault_datas},
-    utils::util::{bigdecimal_to_u64, parse_timestamp_secs, standardize_address},
+    utils::util::{bigdecimal_to_u64, parse_timestamp_secs, standardize_address, ObjectOwnerMapping},
 };
 use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
@@ -149,16 +146,16 @@ impl VaultModel {
         txn_version: i64,
         write_set_change_index: i64,
         txn_timestamp: chrono::NaiveDateTime,
-        object_metadatas: &ObjectAggregatedDataMapping,
+        object_owners: &ObjectOwnerMapping,
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         if let Some(inner) = &Vault::from_write_resource(write_resource, txn_version, mirage_module_address)? {
             let vault_id = standardize_address(&write_resource.address.to_string());
-            if let Some(object_metadata) = object_metadatas.get(&vault_id) {
+            if let Some(owner_addr) = object_owners.get(&vault_id) {
                 return Ok(Some(Self {
                     transaction_version: txn_version,
                     write_set_change_index,
-                    owner_addr: object_metadata.object.object_core.get_owner_address(),
+                    owner_addr: owner_addr.clone(),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id,
                     collateral_amount: inner.collateral_amount.clone(),

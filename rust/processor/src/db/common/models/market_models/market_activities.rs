@@ -6,8 +6,7 @@
 
 use super::market_events::MarketEvent;
 use crate::{
-    db::common::models::object_models::v2_object_utils::ObjectAggregatedDataMapping,
-    utils::util::parse_timestamp,
+    utils::util::{parse_timestamp, ObjectOwnerMapping},
     schema::{closed_limit_orders, market_activities, open_positions, closed_positions, open_tpsls, closed_tpsls, open_limit_orders, trade_datas},
 };
 use aptos_protos::transaction::v1::{
@@ -176,7 +175,7 @@ pub struct ClosedLimitOrder {
 impl MarketActivityModel {
     pub fn from_transaction(
         transaction: &TransactionPB,
-        object_metadatas: &ObjectAggregatedDataMapping,
+        object_owners: &ObjectOwnerMapping,
         mirage_module_address: &str,
     ) -> (
         Vec<Trade>,
@@ -235,7 +234,7 @@ impl MarketActivityModel {
                     txn_version,
                     txn_timestamp,
                     index as i64,
-                    object_metadatas,
+                    object_owners,
                 );
                 market_activities.push(market_activity);
 
@@ -302,7 +301,7 @@ impl MarketActivityModel {
         txn_version: i64,
         txn_timestamp: chrono::NaiveDateTime,
         event_index: i64,
-        object_metadatas: &ObjectAggregatedDataMapping,
+        object_owners: &ObjectOwnerMapping,
     ) -> (
         MarketActivityModel,
         Option<Trade>,
@@ -352,10 +351,9 @@ impl MarketActivityModel {
                 next_funding_rate: Some(inner.next_funding_rate.to_bigdecimal()),
             },
             MarketEvent::OpenPositionEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
+                let owner_addr = if let Some(owner_addr) =
+                    object_owners.get(&inner.position.get_reference_address())
                 {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
                     trade = Some(Trade {
                         transaction_version: txn_version,
                         market_id: inner.market.get_reference_address(),
@@ -385,7 +383,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: Some(inner.opening_price.clone()),
                     is_long: Some(inner.is_long),
                     margin_amount: Some(inner.margin_amount.clone()),
@@ -405,10 +403,9 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::ClosePositionEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
+                let owner_addr = if let Some(owner_addr) =
+                    object_owners.get(&inner.position.get_reference_address())
                 {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
                     trade = Some(Trade {
                         transaction_version: txn_version,
                         market_id: inner.market.get_reference_address(),
@@ -438,7 +435,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: Some(inner.closing_price.clone()),
                     is_long: Some(inner.is_long),
                     margin_amount: None,
@@ -458,14 +455,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::IncreaseMarginEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 open_position = Some(OpenPosition {
                     last_transaction_version: txn_version,
@@ -478,7 +468,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: Some(inner.margin_amount.clone()),
@@ -498,14 +488,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::DecreaseMarginEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 open_position = Some(OpenPosition {
                     last_transaction_version: txn_version,
@@ -518,7 +501,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: Some(inner.margin_amount.clone()),
@@ -538,10 +521,9 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::IncreasePositionSizeEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
+                let owner_addr = if let Some(owner_addr) =
+                    object_owners.get(&inner.position.get_reference_address())
                 {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
                     trade = Some(Trade {
                         transaction_version: txn_version,
                         market_id: inner.market.get_reference_address(),
@@ -571,7 +553,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: Some(inner.new_opening_price.clone()),
                     is_long: None,
                     margin_amount: None,
@@ -591,10 +573,9 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::DecreasePositionSizeEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
+                let owner_addr = if let Some(owner_addr) =
+                    object_owners.get(&inner.position.get_reference_address())
                 {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
                     trade = Some(Trade {
                         transaction_version: txn_version,
                         market_id: inner.market.get_reference_address(),
@@ -624,7 +605,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: Some(inner.closing_price.clone()),
                     is_long: None,
                     margin_amount: None,
@@ -644,10 +625,9 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::LiquidatePositionEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
+                let owner_addr = if let Some(owner_addr) =
+                    object_owners.get(&inner.position.get_reference_address())
                 {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
                     trade = Some(Trade {
                         transaction_version: txn_version,
                         market_id: inner.market.get_reference_address(),
@@ -677,7 +657,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: Some(inner.closing_price.clone()),
                     is_long: Some(inner.is_long),
                     margin_amount: Some(inner.remaining_maintenance_margin.clone()),
@@ -697,14 +677,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::PlaceTpslEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 open_tpsl = Some(OpenTpsl {
                     last_transaction_version: txn_version,
@@ -717,7 +690,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -737,14 +710,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::UpdateTpslEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 open_tpsl = Some(OpenTpsl {
                     last_transaction_version: txn_version,
@@ -757,7 +723,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -777,14 +743,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::CancelTpslEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 closed_tpsl = Some(ClosedTpsl {
                     transaction_version: txn_version,
@@ -797,7 +756,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -817,14 +776,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::IncreaseTpslTriggerPaymentEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 open_tpsl = Some(OpenTpsl {
                     last_transaction_version: txn_version,
@@ -837,7 +789,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -857,14 +809,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::DecreaseTpslTriggerPaymentEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 open_tpsl = Some(OpenTpsl {
                     last_transaction_version: txn_version,
@@ -877,7 +822,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -897,14 +842,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::TriggerTpslEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 closed_tpsl = Some(ClosedTpsl {
                     transaction_version: txn_version,
@@ -917,7 +855,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: None,
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -937,14 +875,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::PlaceLimitOrderEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 open_limit_order = Some(OpenLimitOrder {
                     last_transaction_version: txn_version,
@@ -958,7 +889,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: Some(inner.id.clone()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: Some(inner.margin_amount.clone()),
@@ -978,14 +909,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::UpdateLimitOrderEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 open_limit_order = Some(OpenLimitOrder {
                     last_transaction_version: txn_version,
@@ -999,7 +923,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: Some(inner.id.clone()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: Some(inner.margin_amount.clone()),
@@ -1019,14 +943,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::CancelLimitOrderEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 closed_limit_order = Some(ClosedLimitOrder {
                     transaction_version: txn_version,
@@ -1040,7 +957,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: Some(inner.id.clone()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -1060,14 +977,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::TriggerLimitOrderEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 closed_limit_order = Some(ClosedLimitOrder {
                     transaction_version: txn_version,
@@ -1081,7 +991,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: Some(inner.id.clone()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -1101,14 +1011,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::IncreaseLimitOrderTriggerPaymentEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 open_limit_order = Some(OpenLimitOrder {
                     last_transaction_version: txn_version,
@@ -1122,7 +1025,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: Some(inner.id.clone()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -1142,14 +1045,7 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::DecreaseLimitOrderTriggerPaymentEvent(inner) => {
-                let owner_addr = if let Some(object_metadata) =
-                    object_metadatas.get(&inner.position.get_reference_address())
-                {
-                    let owner_addr = object_metadata.object.object_core.get_owner_address();
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
                 open_limit_order = Some(OpenLimitOrder {
                     last_transaction_version: txn_version,
@@ -1163,7 +1059,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     id: Some(inner.id.clone()),
-                    owner_addr,
+                    owner_addr: owner_addr.cloned(),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,

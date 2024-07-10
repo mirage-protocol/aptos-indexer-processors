@@ -7,12 +7,9 @@
 
 use super::market_utils::{LimitOrders, MarketCollection};
 use crate::{
-    db::common::models::{
-        market_models::market_utils::{Position, TpSl},
-        object_models::v2_object_utils::ObjectAggregatedDataMapping,
-    },
+    db::common::models::market_models::market_utils::{Position, TpSl},
     schema::{limit_order_datas, market_configs, market_datas, position_datas, tpsl_datas},
-    utils::util::{bigdecimal_to_u64, parse_timestamp_secs, standardize_address},
+    utils::util::{bigdecimal_to_u64, parse_timestamp_secs, standardize_address, ObjectOwnerMapping},
 };
 use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
@@ -204,16 +201,16 @@ impl PositionModel {
         txn_version: i64,
         write_set_change_index: i64,
         txn_timestamp: chrono::NaiveDateTime,
-        object_metadatas: &ObjectAggregatedDataMapping,
+        object_owners: &ObjectOwnerMapping,
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         if let Some(inner) = &Position::from_write_resource(write_resource, txn_version, mirage_module_address)? {
             let position_id = standardize_address(&write_resource.address.to_string());
-            if let Some(object_metadata) = object_metadatas.get(&position_id) {
+            if let Some(owner_addr) = object_owners.get(&position_id) {
                 return Ok(Some(Self {
                     transaction_version: txn_version,
                     write_set_change_index,
-                    owner_addr: object_metadata.object.object_core.get_owner_address(),
+                    owner_addr: owner_addr.clone(),
                     market_id: inner.market.get_reference_address(),
                     position_id,
                     opening_price: inner.opening_price.clone(),
@@ -238,16 +235,16 @@ impl TpSlModel {
         txn_version: i64,
         write_set_change_index: i64,
         txn_timestamp: chrono::NaiveDateTime,
-        object_metadatas: &ObjectAggregatedDataMapping,
+        object_owners: &ObjectOwnerMapping,
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         if let Some(inner) = &TpSl::from_write_resource(write_resource, txn_version, mirage_module_address)? {
             let position_id = standardize_address(&write_resource.address.to_string());
-            if let Some(object_metadata) = object_metadatas.get(&position_id) {
+            if let Some(owner_addr) = object_owners.get(&position_id) {
                 return Ok(Some(Self {
                     transaction_version: txn_version,
                     write_set_change_index,
-                    owner_addr: object_metadata.object.object_core.get_owner_address(),
+                    owner_addr: owner_addr.clone(),
                     market_id: inner.market.get_reference_address(),
                     position_id,
                     take_profit_price: inner.take_profit_price.clone(),
@@ -294,12 +291,12 @@ impl LimitOrderModel {
         txn_version: i64,
         write_set_change_index: i64,
         txn_timestamp: chrono::NaiveDateTime,
-        object_metadatas: &ObjectAggregatedDataMapping,
+        object_owners: &ObjectOwnerMapping,
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Vec<LimitOrderModel>>> {
         if let Some(inner) = &LimitOrders::from_write_resource(write_resource, txn_version, mirage_module_address)? {
             let position_id = standardize_address(&write_resource.address.to_string());
-            if let Some(object_metadata) = object_metadatas.get(&position_id) {
+            if let Some(owner_addr) = object_owners.get(&position_id) {
                 let mut result = Vec::new();
                 result.reserve_exact(inner.orders.len());
 
@@ -307,7 +304,7 @@ impl LimitOrderModel {
                     result.push(LimitOrderModel {
                         transaction_version: txn_version,
                         write_set_change_index,
-                        owner_addr: object_metadata.object.object_core.get_owner_address(),
+                        owner_addr: owner_addr.clone(),
                         market_id: inner.market.get_reference_address(),
                         position_id: position_id.clone(),
                         limit_order_id: order.id.clone(),
