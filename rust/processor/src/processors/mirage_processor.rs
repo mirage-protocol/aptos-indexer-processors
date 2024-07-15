@@ -4,7 +4,7 @@ use super::{ProcessorName, ProcessorTrait, DefaultProcessingResult};
 use crate::{
     db::common::models::{
        market_models::{
-            market_activities::{ClosedLimitOrder, ClosedPosition, ClosedTpsl, MarketActivityModel, OpenLimitOrder, OpenPosition, OpenTpsl, Trade},
+            market_activities::{MarketActivityModel, CurrentLimitOrder, CurrentPosition, CurrentTpsl, Trade},
             market_datas::{
                 LimitOrderModel, MarketCollectionModel, MarketConfigModel, PositionModel, TpSlModel,
             },
@@ -29,13 +29,9 @@ use ahash::AHashMap;
 use anyhow::bail;
 use aptos_protos::transaction::v1::{transaction::TxnData, write_set_change::Change, Transaction};
 use async_trait::async_trait;
-use bigdecimal::BigDecimal;
 use bigdecimal::ToPrimitive;
 use core::hash::Hash;
-use diesel::{
-    pg::Pg, query_builder::QueryFragment, sql_types::Bool, upsert::excluded, BoolExpressionMethods,
-    BoxableExpression, ExpressionMethods,
-};
+use diesel::{pg::Pg, query_builder::QueryFragment, upsert::excluded, ExpressionMethods};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tracing::error;
@@ -94,12 +90,9 @@ pub async fn insert_to_db(
     tpsl_datas: &[TpSlModel],
     limit_order_datas: &[LimitOrderModel],
     trades: &[Trade],
-    open_positions: &[OpenPosition],
-    closed_positions: &[ClosedPosition],
-    open_tpsls: &[OpenTpsl],
-    closed_tpsls: &[ClosedTpsl],
-    open_limit_orders: &[OpenLimitOrder],
-    closed_limit_orders: &[ClosedLimitOrder],
+    current_positions: &[CurrentPosition],
+    current_tpsls: &[CurrentTpsl],
+    current_limit_orders: &[CurrentLimitOrder],
     market_activities: &[MarketActivityModel],
     per_table_chunk_sizes: &AHashMap<String, usize>,
 ) -> Result<(), diesel::result::Error> {
@@ -194,68 +187,23 @@ pub async fn insert_to_db(
         trades,
         get_config_table_chunk_size::<Trade>("trade_datas", per_table_chunk_sizes),
     );
-    let op = execute_in_chunks(
-        conn.clone(),
-        insert_open_positions_query,
-        open_positions,
-        get_config_table_chunk_size::<OpenPosition>("open_position", per_table_chunk_sizes),
-    );
     let cp = execute_in_chunks(
         conn.clone(),
-        insert_closed_positions_query,
-        closed_positions,
-        get_config_table_chunk_size::<ClosedPosition>(
-            "closed_positions",
-            per_table_chunk_sizes,
-        ),
-    );
-    let otp = execute_in_chunks(
-        conn.clone(),
-        insert_open_tpsls_query,
-        open_tpsls,
-        get_config_table_chunk_size::<OpenTpsl>("open_tpsls", per_table_chunk_sizes),
+        insert_current_positions_query,
+        current_positions,
+        get_config_table_chunk_size::<CurrentPosition>("current_position", per_table_chunk_sizes),
     );
     let ctp = execute_in_chunks(
         conn.clone(),
-        insert_closed_tpsls_query,
-        closed_tpsls,
-        get_config_table_chunk_size::<ClosedTpsl>(
-            "closed_tpsls",
-            per_table_chunk_sizes,
-        ),
-    );
-    let ol = execute_in_chunks(
-        conn.clone(),
-        insert_open_limit_orders_query,
-        open_limit_orders,
-        get_config_table_chunk_size::<OpenLimitOrder>("open_limit_orders", per_table_chunk_sizes),
+        insert_current_tpsls_query,
+        current_tpsls,
+        get_config_table_chunk_size::<CurrentTpsl>("current_tpsls", per_table_chunk_sizes),
     );
     let cl = execute_in_chunks(
         conn.clone(),
-        insert_closed_limit_orders_query,
-        closed_limit_orders,
-        get_config_table_chunk_size::<ClosedLimitOrder>(
-            "closed_limit_orders",
-            per_table_chunk_sizes,
-        ),
-    );
-    let dl = execute_in_chunks(
-        conn.clone(),
-        delete_open_limit_orders_query,
-        closed_limit_orders,
-        get_config_table_chunk_size::<OpenLimitOrder>("open_limit_orders", per_table_chunk_sizes),
-    );
-    let dtp = execute_in_chunks(
-        conn.clone(),
-        delete_open_tpsls_query,
-        closed_tpsls,
-        get_config_table_chunk_size::<OpenTpsl>("open_tpsls", per_table_chunk_sizes),
-    );
-    let dop = execute_in_chunks(
-        conn.clone(),
-        delete_open_positions_query,
-        closed_positions,
-        get_config_table_chunk_size::<ClosedPosition>("closed_positions", per_table_chunk_sizes),
+        insert_current_limit_orders_query,
+        current_limit_orders,
+        get_config_table_chunk_size::<CurrentLimitOrder>("current_limit_orders", per_table_chunk_sizes),
     );
     let ma = execute_in_chunks(
         conn.clone(),
@@ -280,21 +228,15 @@ pub async fn insert_to_db(
         tpd_res,
         lod_res,
         td_res,
-        op_res,
         cp_res,
-        otp_res,
         ctp_res,
-        ol_res,
         cl_res,
-        dop_res,
-        dtp_res,
-        dl_res,
         ma_res,
-    ) = tokio::join!(cfd, cfs, vcd, vc, vd, va, mcd, mc, pd, tpd, lod, td, op, cp, otp, ctp, ol, cl, dop, dtp, dl, ma);
+    ) = tokio::join!(cfd, cfs, vcd, vc, vd, va, mcd, mc, pd, tpd, lod, td, cp, ctp, cl, ma);
 
     for res in [
         cfd_res, cfs_res, vcd_res, vc_res, vd_res, va_res, mcd_res, mc_res, pd_res, tpd_res,
-        lod_res, td_res, op_res, cp_res, otp_res, ctp_res, ol_res, cl_res, dop_res, dtp_res, dl_res, ma_res,
+        lod_res, td_res, cp_res, ctp_res, cl_res, ma_res,
     ] {
         res?;
     }
@@ -451,242 +393,79 @@ fn insert_trade_datas_query(
     )
 }
 
-fn insert_open_positions_query(
-    items_to_insert: Vec<OpenPosition>,
+fn insert_current_positions_query(
+    items_to_insert: Vec<CurrentPosition>,
 ) -> (
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::open_positions::dsl::*;
+    use schema::current_positions::dsl::*;
     (
-        diesel::insert_into(schema::open_positions::table)
+        diesel::insert_into(schema::current_positions::table)
             .values(items_to_insert)
             .on_conflict(position_id)
             .do_update()
             .set((
                 transaction_timestamp.eq(excluded(transaction_timestamp)),
                 last_transaction_version.eq(excluded(last_transaction_version)),
+                is_closed.eq(excluded(is_closed)),
+                event_index.eq(excluded(event_index)),
                 inserted_at.eq(excluded(inserted_at)),
             )),
-        Some("WHERE open_positions.last_transaction_version <= excluded.last_transaction_version "),
+        Some("WHERE current_limit_orders.last_transaction_version < excluded.last_transaction_version 
+            OR (current_limit_orders.last_transaction_version = excluded.last_transaction_version 
+                AND current_limit_orders.event_index <= excluded.event_index)")
     )
 }
 
-fn insert_closed_positions_query(
-    items_to_insert: Vec<ClosedPosition>,
+fn insert_current_tpsls_query(
+    items_to_insert: Vec<CurrentTpsl>,
 ) -> (
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::closed_positions::dsl::*;
+    use schema::current_tpsls::dsl::*;
     (
-        diesel::insert_into(schema::closed_positions::table)
-            .values(items_to_insert)
-            .on_conflict(position_id)
-            .do_nothing(),
-        None,
-    )
-}
-
-fn insert_open_tpsls_query(
-    items_to_insert: Vec<OpenTpsl>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use schema::open_tpsls::dsl::*;
-    (
-        diesel::insert_into(schema::open_tpsls::table)
+        diesel::insert_into(schema::current_tpsls::table)
             .values(items_to_insert)
             .on_conflict(position_id)
             .do_update()
             .set((
                 transaction_timestamp.eq(excluded(transaction_timestamp)),
                 last_transaction_version.eq(excluded(last_transaction_version)),
+                is_closed.eq(excluded(is_closed)),
+                event_index.eq(excluded(event_index)),
                 inserted_at.eq(excluded(inserted_at)),
             )),
-        Some("WHERE open_tpsls.last_transaction_version <= excluded.last_transaction_version "),
+        Some("WHERE current_limit_orders.last_transaction_version < excluded.last_transaction_version 
+            OR (current_limit_orders.last_transaction_version = excluded.last_transaction_version 
+                AND current_limit_orders.event_index <= excluded.event_index)")
     )
 }
 
-fn insert_closed_tpsls_query(
-    items_to_insert: Vec<ClosedTpsl>,
+fn insert_current_limit_orders_query(
+    items_to_insert: Vec<CurrentLimitOrder>,
 ) -> (
     impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
     Option<&'static str>,
 ) {
-    use schema::closed_tpsls::*;
+    use schema::current_limit_orders::dsl::*;
     (
-        diesel::insert_into(schema::closed_tpsls::table)
-            .values(items_to_insert)
-            .on_conflict(position_id)
-            .do_nothing(),
-        None,
-    )
-}
-
-fn insert_open_limit_orders_query(
-    items_to_insert: Vec<OpenLimitOrder>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use schema::open_limit_orders::dsl::*;
-    (
-        diesel::insert_into(schema::open_limit_orders::table)
+        diesel::insert_into(schema::current_limit_orders::table)
             .values(items_to_insert)
             .on_conflict((position_id, limit_order_id))
             .do_update()
             .set((
                 transaction_timestamp.eq(excluded(transaction_timestamp)),
                 last_transaction_version.eq(excluded(last_transaction_version)),
+                is_closed.eq(excluded(is_closed)),
+                event_index.eq(excluded(event_index)),
                 inserted_at.eq(excluded(inserted_at)),
             )),
-        Some("WHERE open_limit_orders.last_transaction_version <= excluded.last_transaction_version "),
+        Some("WHERE current_limit_orders.last_transaction_version < excluded.last_transaction_version 
+            OR (current_limit_orders.last_transaction_version = excluded.last_transaction_version 
+                AND current_limit_orders.event_index <= excluded.event_index)")
     )
-}
-
-fn insert_closed_limit_orders_query(
-    items_to_insert: Vec<ClosedLimitOrder>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use schema::closed_limit_orders::dsl::*;
-    (
-        diesel::insert_into(schema::closed_limit_orders::table)
-            .values(items_to_insert)
-            .on_conflict((position_id, limit_order_id))
-            .do_nothing(),
-        None,
-    )
-}
-
-fn delete_open_limit_orders_query(
-    items_to_insert: Vec<ClosedLimitOrder>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use schema::open_limit_orders;
-    let position_ids: Vec<String> = items_to_insert
-        .iter()
-        .map(|x| x.position_id.clone())
-        .collect();
-    let limit_order_ids: Vec<BigDecimal> = items_to_insert
-        .iter()
-        .map(|x| x.limit_order_id.clone())
-        .collect();
-
-    if items_to_insert.is_empty() {
-        // empty query
-        let conditions =
-            Box::new(open_limit_orders::position_id.eq(String::from("INVALID ADDRESS")))
-                as Box<dyn BoxableExpression<open_limit_orders::table, Pg, SqlType = Bool>>;
-        (
-            diesel::delete(open_limit_orders::table).filter(conditions),
-            None,
-        )
-    } else {
-        // delete closed, open limit orders
-        let initial_conditional = open_limit_orders::position_id
-            .eq(position_ids[0].to_string())
-            .and(open_limit_orders::limit_order_id.eq(limit_order_ids[0].clone()));
-        let mut conditions = Box::new(initial_conditional)
-            as Box<dyn BoxableExpression<open_limit_orders::table, Pg, SqlType = Bool>>;
-        for index in 1..position_ids.len() {
-            let position_id = position_ids[index].to_string();
-            let limit_order_id = limit_order_ids[index].clone();
-            let new_condition = open_limit_orders::position_id
-                .eq(position_id)
-                .and(open_limit_orders::limit_order_id.eq(limit_order_id));
-            conditions = Box::new(conditions.or(new_condition));
-        }
-        (
-            diesel::delete(open_limit_orders::table).filter(conditions),
-            None,
-        )
-    }
-}
-
-fn delete_open_positions_query(
-    items_to_insert: Vec<ClosedPosition>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use schema::open_positions;
-    let position_ids: Vec<String> = items_to_insert
-        .iter()
-        .map(|x| x.position_id.clone())
-        .collect();
-
-    if items_to_insert.is_empty() {
-        // empty query
-        let conditions =
-            Box::new(open_positions::position_id.eq(String::from("INVALID ADDRESS")))
-                as Box<dyn BoxableExpression<open_positions::table, Pg, SqlType = Bool>>;
-        (
-            diesel::delete(open_positions::table).filter(conditions),
-            None,
-        )
-    } else {
-        // delete closed, open limit orders
-        let initial_conditional = open_positions::position_id
-            .eq(position_ids[0].to_string());
-        let mut conditions = Box::new(initial_conditional)
-            as Box<dyn BoxableExpression<open_positions::table, Pg, SqlType = Bool>>;
-        for index in 1..position_ids.len() {
-            let position_id = position_ids[index].to_string();
-            let new_condition = open_positions::position_id
-                .eq(position_id);
-            conditions = Box::new(conditions.or(new_condition));
-        }
-        (
-            diesel::delete(open_positions::table).filter(conditions),
-            None,
-        )
-    }
-}
-
-fn delete_open_tpsls_query(
-    items_to_insert: Vec<ClosedTpsl>,
-) -> (
-    impl QueryFragment<Pg> + diesel::query_builder::QueryId + Send,
-    Option<&'static str>,
-) {
-    use schema::open_tpsls;
-    let position_ids: Vec<String> = items_to_insert
-        .iter()
-        .map(|x| x.position_id.clone())
-        .collect();
-
-    if items_to_insert.is_empty() {
-        // empty query
-        let conditions =
-            Box::new(open_tpsls::position_id.eq(String::from("INVALID ADDRESS")))
-                as Box<dyn BoxableExpression<open_tpsls::table, Pg, SqlType = Bool>>;
-        (
-            diesel::delete(open_tpsls::table).filter(conditions),
-            None,
-        )
-    } else {
-        // delete closed, open limit orders
-        let initial_conditional = open_tpsls::position_id
-            .eq(position_ids[0].to_string());
-        let mut conditions = Box::new(initial_conditional)
-            as Box<dyn BoxableExpression<open_tpsls::table, Pg, SqlType = Bool>>;
-        for index in 1..position_ids.len() {
-            let position_id = position_ids[index].to_string();
-            let new_condition = open_tpsls::position_id
-                .eq(position_id);
-            conditions = Box::new(conditions.or(new_condition));
-        }
-        (
-            diesel::delete(open_tpsls::table).filter(conditions),
-            None,
-        )
-    }
 }
 
 fn insert_market_activities_query(
@@ -808,12 +587,9 @@ impl ProcessorTrait for MirageProcessor {
             tpsl_datas,
             limit_orders,
             trades,
-            open_positions,
-            closed_positions,
-            open_tpsls,
-            closed_tpsls,
-            open_limit_orders,
-            closed_limit_orders,
+            current_positions,
+            current_tpsls,
+            current_limit_orders,
             market_activities,
         ) = parse_mirage_protocol(&transactions, &self.config.mirage_module_address).await;
 
@@ -837,12 +613,9 @@ impl ProcessorTrait for MirageProcessor {
             &tpsl_datas,
             &limit_orders,
             &trades,
-            &open_positions,
-            &closed_positions,
-            &open_tpsls,
-            &closed_tpsls,
-            &open_limit_orders,
-            &closed_limit_orders,
+            &current_positions,
+            &current_tpsls,
+            &current_limit_orders,
             &market_activities,
             &self.per_table_chunk_sizes,
         )
@@ -894,12 +667,9 @@ pub async fn parse_mirage_protocol(
     Vec<TpSlModel>,
     Vec<LimitOrderModel>,
     Vec<Trade>,
-    Vec<OpenPosition>,
-    Vec<ClosedPosition>,
-    Vec<OpenTpsl>,
-    Vec<ClosedTpsl>,
-    Vec<OpenLimitOrder>,
-    Vec<ClosedLimitOrder>,
+    Vec<CurrentPosition>,
+    Vec<CurrentTpsl>,
+    Vec<CurrentLimitOrder>,
     Vec<MarketActivityModel>,
 ) {
     // Get Metadata for token v2 by object
@@ -923,12 +693,9 @@ pub async fn parse_mirage_protocol(
     let mut tpsl_datas = vec![];
 
     let mut all_trades: Vec<Trade> = vec![];
-    let mut all_open_positions: AHashMap<String, OpenPosition> = AHashMap::new();
-    let mut all_closed_positions: Vec<ClosedPosition> = vec![];
-    let mut all_open_tpsls: AHashMap<String, OpenTpsl> = AHashMap::new();
-    let mut all_closed_tpsls: Vec<ClosedTpsl> = vec![];
-    let mut all_open_limit_orders: AHashMap<(String, u64), OpenLimitOrder> = AHashMap::new();
-    let mut all_closed_limit_orders: Vec<ClosedLimitOrder> = vec![];
+    let mut all_current_positions: AHashMap<String, CurrentPosition> = AHashMap::new();
+    let mut all_current_tpsls: AHashMap<String, CurrentTpsl> = AHashMap::new();
+    let mut all_current_limit_orders: AHashMap<(String, u64), CurrentLimitOrder> = AHashMap::new();
     let mut all_market_activities: Vec<MarketActivityModel> = vec![];
 
     // Helper function to update the latest transaction in the HashMap
@@ -1115,31 +882,25 @@ pub async fn parse_mirage_protocol(
                 VaultActivityModel::from_transaction(txn, &object_owners, mirage_module_address);
             let (
                 mut trades,
-                open_positions,
-                mut closed_positions,
-                open_tpsls,
-                mut closed_tpsls,
-                open_limit_orders,
-                mut closed_limit_orders,
+                current_positions,
+                current_tpsls,
+                current_limit_orders,
                 mut market_activities,
             ) = MarketActivityModel::from_transaction(txn, &object_owners, mirage_module_address);
 
-            update_latest(&mut all_open_positions, open_positions, |pos| pos.position_id.clone());
-            update_latest(&mut all_open_limit_orders, open_limit_orders, |pos| (pos.position_id.clone(), pos.limit_order_id.to_u64().expect("invalid limit order id")));
-            update_latest(&mut all_open_tpsls, open_tpsls, |pos| pos.position_id.clone());
+            update_latest(&mut all_current_positions, current_positions, |pos| pos.position_id.clone());
+            update_latest(&mut all_current_limit_orders, current_limit_orders, |pos| (pos.position_id.clone(), pos.limit_order_id.to_u64().expect("invalid limit order id")));
+            update_latest(&mut all_current_tpsls, current_tpsls, |pos| pos.position_id.clone());
 
             all_vault_activities.append(&mut vault_activities);
             all_trades.append(&mut trades);
-            all_closed_positions.append(&mut closed_positions);
-            all_closed_tpsls.append(&mut closed_tpsls);
-            all_closed_limit_orders.append(&mut closed_limit_orders);
             all_market_activities.append(&mut market_activities);
         }
     }
 
-    let mut all_open_positions: Vec<OpenPosition> = all_open_positions.into_values().collect();
-    let mut all_open_limit_orders: Vec<OpenLimitOrder> = all_open_limit_orders.into_values().collect();
-    let mut all_open_tpsls: Vec<OpenTpsl> = all_open_tpsls.into_values().collect();
+    let mut all_current_positions: Vec<CurrentPosition> = all_current_positions.into_values().collect();
+    let mut all_current_limit_orders: Vec<CurrentLimitOrder> = all_current_limit_orders.into_values().collect();
+    let mut all_current_tpsls: Vec<CurrentTpsl> = all_current_tpsls.into_values().collect();
 
     // Sort by PK
     mirage_debt_stores.sort_by(|a, b| a.asset_type.cmp(&b.asset_type));
@@ -1160,11 +921,10 @@ pub async fn parse_mirage_protocol(
     tpsl_datas.sort_by(|a, b| (&a.position_id, &a.market_id).cmp(&(&b.position_id, &b.market_id)));
 
     all_trades.sort_by(|a, b| a.position_id.cmp(&b.position_id));
-    all_closed_limit_orders.sort_by(|a, b| a.limit_order_id.cmp(&b.limit_order_id));
 
-    all_open_positions.sort_by(|a, b| a.position_id.cmp(&b.position_id));
-    all_open_tpsls.sort_by(|a, b| a.position_id.cmp(&b.position_id));
-    all_open_limit_orders.sort_by(|a, b| (&a.position_id, &a.limit_order_id).cmp(&(&b.position_id, &b.limit_order_id)));
+    all_current_positions.sort_by(|a, b| a.position_id.cmp(&b.position_id));
+    all_current_tpsls.sort_by(|a, b| a.position_id.cmp(&b.position_id));
+    all_current_limit_orders.sort_by(|a, b| (&a.position_id, &a.limit_order_id).cmp(&(&b.position_id, &b.limit_order_id)));
 
     (
         mirage_debt_stores,
@@ -1179,12 +939,9 @@ pub async fn parse_mirage_protocol(
         tpsl_datas,
         all_limit_orders,
         all_trades,
-        all_open_positions,
-        all_closed_positions,
-        all_open_tpsls,
-        all_closed_tpsls,
-        all_open_limit_orders,
-        all_closed_limit_orders,
+        all_current_positions,
+        all_current_tpsls,
+        all_current_limit_orders,
         all_market_activities,
     )
 }

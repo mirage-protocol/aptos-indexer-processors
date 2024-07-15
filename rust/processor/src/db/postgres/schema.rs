@@ -102,43 +102,6 @@ diesel::table! {
 }
 
 diesel::table! {
-    closed_limit_orders (position_id, limit_order_id) {
-        transaction_version -> Int8,
-        #[max_length = 66]
-        market_id -> Varchar,
-        #[max_length = 66]
-        position_id -> Varchar,
-        limit_order_id -> Numeric,
-        transaction_timestamp -> Timestamp,
-        inserted_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    closed_positions (position_id) {
-        transaction_version -> Int8,
-        #[max_length = 66]
-        market_id -> Varchar,
-        #[max_length = 66]
-        position_id -> Varchar,
-        transaction_timestamp -> Timestamp,
-        inserted_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    closed_tpsls (position_id) {
-        transaction_version -> Int8,
-        #[max_length = 66]
-        market_id -> Varchar,
-        #[max_length = 66]
-        position_id -> Varchar,
-        transaction_timestamp -> Timestamp,
-        inserted_at -> Timestamp,
-    }
-}
-
-diesel::table! {
     coin_activities (transaction_version, event_account_address, event_creation_number, event_sequence_number) {
         transaction_version -> Int8,
         #[max_length = 66]
@@ -478,6 +441,21 @@ diesel::table! {
 }
 
 diesel::table! {
+    current_limit_orders (position_id, limit_order_id) {
+        last_transaction_version -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Varchar,
+        limit_order_id -> Numeric,
+        is_closed -> Bool,
+        event_index -> Int8,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
     current_objects (object_address) {
         #[max_length = 66]
         object_address -> Varchar,
@@ -491,6 +469,20 @@ diesel::table! {
         is_deleted -> Bool,
         inserted_at -> Timestamp,
         untransferrable -> Bool,
+    }
+}
+
+diesel::table! {
+    current_positions (position_id) {
+        last_transaction_version -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Varchar,
+        is_closed -> Bool,
+        event_index -> Int8,
+        transaction_timestamp -> Timestamp,
+        inserted_at -> Timestamp,
     }
 }
 
@@ -684,6 +676,20 @@ diesel::table! {
         #[max_length = 66]
         state_key_hash -> Varchar,
         last_transaction_version -> Int8,
+        inserted_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    current_tpsls (position_id) {
+        last_transaction_version -> Int8,
+        #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
+        position_id -> Varchar,
+        is_closed -> Bool,
+        event_index -> Int8,
+        transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
     }
 }
@@ -1104,43 +1110,6 @@ diesel::table! {
         is_deleted -> Bool,
         inserted_at -> Timestamp,
         untransferrable -> Bool,
-    }
-}
-
-diesel::table! {
-    open_limit_orders (position_id, limit_order_id) {
-        last_transaction_version -> Int8,
-        #[max_length = 66]
-        market_id -> Varchar,
-        #[max_length = 66]
-        position_id -> Varchar,
-        limit_order_id -> Numeric,
-        transaction_timestamp -> Timestamp,
-        inserted_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    open_positions (position_id) {
-        last_transaction_version -> Int8,
-        #[max_length = 66]
-        market_id -> Varchar,
-        #[max_length = 66]
-        position_id -> Varchar,
-        transaction_timestamp -> Timestamp,
-        inserted_at -> Timestamp,
-    }
-}
-
-diesel::table! {
-    open_tpsls (position_id) {
-        last_transaction_version -> Int8,
-        #[max_length = 66]
-        market_id -> Varchar,
-        #[max_length = 66]
-        position_id -> Varchar,
-        transaction_timestamp -> Timestamp,
-        inserted_at -> Timestamp,
     }
 }
 
@@ -1649,9 +1618,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     ans_primary_name,
     ans_primary_name_v2,
     block_metadata_transactions,
-    closed_limit_orders,
-    closed_positions,
-    closed_tpsls,
     coin_activities,
     coin_balances,
     coin_infos,
@@ -1669,7 +1635,9 @@ diesel::allow_tables_to_appear_in_same_query!(
     current_delegated_voter,
     current_delegator_balances,
     current_fungible_asset_balances,
+    current_limit_orders,
     current_objects,
+    current_positions,
     current_staking_pool_voter,
     current_table_items,
     current_token_datas,
@@ -1679,6 +1647,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     current_token_pending_claims,
     current_token_royalty_v1,
     current_token_v2_metadata,
+    current_tpsls,
     current_unified_fungible_asset_balances_to_be_renamed,
     delegated_staking_activities,
     delegated_staking_pool_balances,
@@ -1701,9 +1670,6 @@ diesel::allow_tables_to_appear_in_same_query!(
     move_resources,
     nft_points,
     objects,
-    open_limit_orders,
-    open_positions,
-    open_tpsls,
     position_datas,
     processor_status,
     proposal_votes,

@@ -99,97 +99,59 @@ CREATE INDEX limit_order_datas_mid on limit_order_datas (market_id);
 CREATE INDEX limit_order_datas_oa on limit_order_datas (owner_addr);
 CREATE INDEX limit_orders_datas_oa_mid on limit_order_datas (owner_addr, market_id);
 
--- open positions
-CREATE TABLE open_positions (
+-- current positions
+CREATE TABLE current_positions (
   last_transaction_version BIGINT NOT NULL,
 
   market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
 
+  is_closed BOOLEAN NOT NULL,
+
+  event_index BIGINT NOT NULL,
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
   -- Constraints
   PRIMARY KEY (position_id)
 );
-CREATE INDEX open_positions_mid on open_positions (market_id, position_id);
-CREATE INDEX open_positions_pid on open_positions (position_id);
+CREATE INDEX current_positions_mid on current_positions (market_id, position_id);
+CREATE INDEX current_positions_pid on current_positions (position_id);
 
--- closed positions
-CREATE TABLE closed_positions (
-  transaction_version BIGINT NOT NULL,
-
-  market_id VARCHAR(66) NOT NULL,
-  position_id VARCHAR(66) NOT NULL,
-
-  transaction_timestamp TIMESTAMP NOT NULL,
-  inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  -- Constraints
-  PRIMARY KEY (position_id)
-);
-CREATE INDEX closed_positions_mid on closed_positions (market_id, position_id);
-CREATE INDEX closed_positions_pid on closed_positions (position_id);
-
--- open tpsl
-CREATE TABLE open_tpsls (
+-- current tpsl
+CREATE TABLE current_tpsls (
   last_transaction_version BIGINT NOT NULL,
 
   market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
 
+  is_closed BOOLEAN NOT NULL,
+
+  event_index BIGINT NOT NULL,
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
   -- Constraints
   PRIMARY KEY (position_id)
 );
-CREATE INDEX open_tpsl_mid on open_tpsls (market_id, position_id);
-CREATE INDEX open_tpsl_pid on open_tpsls (position_id);
-
--- closed tpsls
-CREATE TABLE closed_tpsls (
-  transaction_version BIGINT NOT NULL,
-
-  market_id VARCHAR(66) NOT NULL,
-  position_id VARCHAR(66) NOT NULL,
-
-  transaction_timestamp TIMESTAMP NOT NULL,
-  inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  -- Constraints
-  PRIMARY KEY (position_id)
-);
-CREATE INDEX closed_tpsl_mid on closed_tpsls (market_id, position_id);
-CREATE INDEX closed_tpsl_pid on closed_tpsls (position_id);
+CREATE INDEX current_tpsl_mid on current_tpsls (market_id, position_id);
+CREATE INDEX current_tpsl_pid on current_tpsls (position_id);
 
 -- open limit orders
-CREATE TABLE open_limit_orders (
+CREATE TABLE current_limit_orders (
   last_transaction_version BIGINT NOT NULL,
 
   market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
   limit_order_id NUMERIC NOT NULL,
 
+  is_closed BOOLEAN NOT NULL,
+
+  event_index BIGINT NOT NULL,
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
   -- Constraints
   PRIMARY KEY (position_id, limit_order_id)
 );
-CREATE INDEX open_limit_orders_mid on open_limit_orders (market_id, position_id);
-CREATE INDEX open_limit_orders_pid on open_limit_orders (position_id);
-
--- closed limit orders
-CREATE TABLE closed_limit_orders (
-  transaction_version BIGINT NOT NULL,
-
-  market_id VARCHAR(66) NOT NULL,
-  position_id VARCHAR(66) NOT NULL,
-  limit_order_id NUMERIC NOT NULL,
-
-  transaction_timestamp TIMESTAMP NOT NULL,
-  inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  -- Constraints
-  PRIMARY KEY (position_id, limit_order_id)
-);
-CREATE INDEX closed_limit_orders_mid on closed_limit_orders (market_id, position_id);
-CREATE INDEX closed_limit_orders_pid on closed_limit_orders (position_id);
+CREATE INDEX current_limit_orders_mid on current_limit_orders (market_id, position_id);
 
 -- positions
 CREATE TABLE position_datas (

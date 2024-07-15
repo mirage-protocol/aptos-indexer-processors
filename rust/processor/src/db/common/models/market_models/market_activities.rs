@@ -7,7 +7,7 @@
 use super::market_events::MarketEvent;
 use crate::{
     utils::util::{parse_timestamp, ObjectOwnerMapping},
-    schema::{closed_limit_orders, market_activities, open_positions, closed_positions, open_tpsls, closed_tpsls, open_limit_orders, trade_datas},
+    schema::{market_activities, current_positions, current_tpsls, current_limit_orders, trade_datas},
 };
 use aptos_protos::transaction::v1::{
     transaction::TxnData, Event as EventPB, Transaction as TransactionPB,
@@ -100,74 +100,46 @@ pub struct Trade {
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(position_id))]
-#[diesel(table_name = open_positions)]
-pub struct OpenPosition {
+#[diesel(table_name = current_positions)]
+pub struct CurrentPosition {
     pub last_transaction_version: i64,
 
     pub market_id: String,
     pub position_id: String,
 
-    pub transaction_timestamp: chrono::NaiveDateTime,
-}
-
-#[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
-#[diesel(primary_key(position_id))]
-#[diesel(table_name = closed_positions)]
-pub struct ClosedPosition {
-    pub transaction_version: i64,
-
-    pub market_id: String,
-    pub position_id: String,
+    pub is_closed: bool,
+    pub event_index: i64,
 
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(position_id))]
-#[diesel(table_name = open_tpsls)]
-pub struct OpenTpsl {
+#[diesel(table_name = current_tpsls)]
+pub struct CurrentTpsl {
     pub last_transaction_version: i64,
 
     pub market_id: String,
     pub position_id: String,
 
-    pub transaction_timestamp: chrono::NaiveDateTime,
-}
-
-#[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
-#[diesel(primary_key(position_id))]
-#[diesel(table_name = closed_tpsls)]
-pub struct ClosedTpsl {
-    pub transaction_version: i64,
-
-    pub market_id: String,
-    pub position_id: String,
+    pub is_closed: bool,
+    pub event_index: i64,
 
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(limit_order_id))]
-#[diesel(table_name = open_limit_orders)]
-pub struct OpenLimitOrder {
+#[diesel(table_name = current_limit_orders)]
+pub struct CurrentLimitOrder {
     pub last_transaction_version: i64,
 
     pub market_id: String,
     pub position_id: String,
     pub limit_order_id: BigDecimal,
 
-    pub transaction_timestamp: chrono::NaiveDateTime,
-}
-
-#[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
-#[diesel(primary_key(limit_order_id))]
-#[diesel(table_name = closed_limit_orders)]
-pub struct ClosedLimitOrder {
-    pub transaction_version: i64,
-
-    pub market_id: String,
-    pub position_id: String,
-    pub limit_order_id: BigDecimal,
+    pub is_closed: bool,
+    pub event_index: i64,
 
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
@@ -179,21 +151,15 @@ impl MarketActivityModel {
         mirage_module_address: &str,
     ) -> (
         Vec<Trade>,
-        Vec<OpenPosition>,
-        Vec<ClosedPosition>,
-        Vec<OpenTpsl>,
-        Vec<ClosedTpsl>,
-        Vec<OpenLimitOrder>,
-        Vec<ClosedLimitOrder>,
+        Vec<CurrentPosition>,
+        Vec<CurrentTpsl>,
+        Vec<CurrentLimitOrder>,
         Vec<MarketActivityModel>,
     ) {
         let mut trades: Vec<Trade> = Vec::new();
-        let mut open_positions: Vec<OpenPosition> = Vec::new();
-        let mut closed_positions: Vec<ClosedPosition> = Vec::new();
-        let mut open_tpsls: Vec<OpenTpsl> = Vec::new();
-        let mut closed_tpsls: Vec<ClosedTpsl> = Vec::new();
-        let mut open_limit_orders: Vec<OpenLimitOrder> = Vec::new();
-        let mut closed_limit_orders: Vec<ClosedLimitOrder> = Vec::new();
+        let mut current_positions: Vec<CurrentPosition> = Vec::new();
+        let mut current_tpsls: Vec<CurrentTpsl> = Vec::new();
+        let mut current_limit_orders: Vec<CurrentLimitOrder> = Vec::new();
         let mut market_activities: Vec<MarketActivityModel> = Vec::new();
 
         // Extracts events and user request from genesis and user transactions. Other transactions won't have coin events
@@ -222,12 +188,9 @@ impl MarketActivityModel {
                 let (
                     market_activity,
                     maybe_trade,
-                    maybe_open_position,
-                    maybe_closed_position,
-                    maybe_open_tpsl,
-                    maybe_closed_tpsl,
-                    maybe_open_limit_order,
-                    maybe_closed_limit_order,
+                    maybe_current_position,
+                    maybe_current_tpsl,
+                    maybe_current_limit_order,
                 ) = Self::from_parsed_event(
                     event,
                     &market_event,
@@ -242,26 +205,14 @@ impl MarketActivityModel {
                     trades.push(inner);
                 }
 
-                if let Some(inner) = maybe_open_position {
-                    open_positions.push(inner);
+                if let Some(inner) = maybe_current_position {
+                    current_positions.push(inner);
                 }
-                if let Some(inner) = maybe_closed_position {
-                    closed_positions.push(inner);
+                if let Some(inner) = maybe_current_tpsl {
+                    current_tpsls.push(inner);
                 }
-
-                if let Some(inner) = maybe_open_tpsl {
-                    open_tpsls.push(inner);
-                }
-                if let Some(inner) = maybe_closed_tpsl {
-                    closed_tpsls.push(inner);
-                }
-
-                if let Some(inner) = maybe_open_limit_order {
-                    open_limit_orders.push(inner);
-                }
-
-                if let Some(inner) = maybe_closed_limit_order {
-                    closed_limit_orders.push(inner);
+                if let Some(inner) = maybe_current_limit_order {
+                    current_limit_orders.push(inner);
                 }
             }
         }
@@ -285,12 +236,9 @@ impl MarketActivityModel {
 
         (
             trades,
-            open_positions,
-            closed_positions,
-            open_tpsls,
-            closed_tpsls,
-            open_limit_orders,
-            closed_limit_orders,
+            current_positions,
+            current_tpsls,
+            current_limit_orders,
             market_activities,
         )
     }
@@ -305,26 +253,18 @@ impl MarketActivityModel {
     ) -> (
         MarketActivityModel,
         Option<Trade>,
-        Option<OpenPosition>,
-        Option<ClosedPosition>,
-        Option<OpenTpsl>,
-        Option<ClosedTpsl>,
-        Option<OpenLimitOrder>,
-        Option<ClosedLimitOrder>,
+        Option<CurrentPosition>,
+        Option<CurrentTpsl>,
+        Option<CurrentLimitOrder>,
     ) {
         let event_creation_number = event.key.as_ref().unwrap().creation_number as i64;
         let event_sequence_number = event.sequence_number as i64;
 
         let mut trade = None;
 
-        let mut open_position = None;
-        let mut closed_position = None;
-
-        let mut open_tpsl = None;
-        let mut closed_tpsl = None;
-
-        let mut open_limit_order = None;
-        let mut closed_limit_order = None;
+        let mut current_position = None;
+        let mut current_tpsl = None;
+        let mut current_limit_order = None;
 
         let market_activity_helper = match parsed_event {
             MarketEvent::UpdateFundingEvent(inner) => MarketActivityHelper {
@@ -372,10 +312,12 @@ impl MarketActivityModel {
                     None
                 };
 
-                open_position = Some(OpenPosition {
+                current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -424,10 +366,12 @@ impl MarketActivityModel {
                     None
                 };
 
-                closed_position = Some(ClosedPosition {
-                    transaction_version: txn_version,
+                current_position = Some(CurrentPosition {
+                    last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: true,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -457,10 +401,12 @@ impl MarketActivityModel {
             MarketEvent::IncreaseMarginEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                open_position = Some(OpenPosition {
+                current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -490,10 +436,12 @@ impl MarketActivityModel {
             MarketEvent::DecreaseMarginEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                open_position = Some(OpenPosition {
+                current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: true,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -542,10 +490,12 @@ impl MarketActivityModel {
                     None
                 };
 
-                open_position = Some(OpenPosition {
+                current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -594,10 +544,12 @@ impl MarketActivityModel {
                     None
                 };
 
-                open_position = Some(OpenPosition {
+                current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -646,10 +598,12 @@ impl MarketActivityModel {
                     None
                 };
 
-                closed_position = Some(ClosedPosition {
-                    transaction_version: txn_version,
+                current_position = Some(CurrentPosition {
+                    last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: true,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -679,10 +633,12 @@ impl MarketActivityModel {
             MarketEvent::PlaceTpslEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                open_tpsl = Some(OpenTpsl {
+                current_tpsl = Some(CurrentTpsl {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -712,10 +668,12 @@ impl MarketActivityModel {
             MarketEvent::UpdateTpslEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                open_tpsl = Some(OpenTpsl {
+                current_tpsl = Some(CurrentTpsl {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -745,10 +703,12 @@ impl MarketActivityModel {
             MarketEvent::CancelTpslEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                closed_tpsl = Some(ClosedTpsl {
-                    transaction_version: txn_version,
+                current_tpsl = Some(CurrentTpsl {
+                    last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -778,10 +738,12 @@ impl MarketActivityModel {
             MarketEvent::IncreaseTpslTriggerPaymentEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                open_tpsl = Some(OpenTpsl {
+                current_tpsl = Some(CurrentTpsl {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -811,10 +773,12 @@ impl MarketActivityModel {
             MarketEvent::DecreaseTpslTriggerPaymentEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                open_tpsl = Some(OpenTpsl {
+                current_tpsl = Some(CurrentTpsl {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -844,10 +808,12 @@ impl MarketActivityModel {
             MarketEvent::TriggerTpslEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                closed_tpsl = Some(ClosedTpsl {
-                    transaction_version: txn_version,
+                current_tpsl = Some(CurrentTpsl {
+                    last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    is_closed: true,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -877,11 +843,13 @@ impl MarketActivityModel {
             MarketEvent::PlaceLimitOrderEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                open_limit_order = Some(OpenLimitOrder {
+                current_limit_order = Some(CurrentLimitOrder {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     limit_order_id: inner.id.clone(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -911,11 +879,13 @@ impl MarketActivityModel {
             MarketEvent::UpdateLimitOrderEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                open_limit_order = Some(OpenLimitOrder {
+                current_limit_order = Some(CurrentLimitOrder {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     limit_order_id: inner.id.clone(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -945,11 +915,13 @@ impl MarketActivityModel {
             MarketEvent::CancelLimitOrderEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                closed_limit_order = Some(ClosedLimitOrder {
-                    transaction_version: txn_version,
+                current_limit_order = Some(CurrentLimitOrder {
+                    last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     limit_order_id: inner.id.clone(),
+                    is_closed: true,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -979,11 +951,13 @@ impl MarketActivityModel {
             MarketEvent::TriggerLimitOrderEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                closed_limit_order = Some(ClosedLimitOrder {
-                    transaction_version: txn_version,
+                current_limit_order = Some(CurrentLimitOrder {
+                    last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     limit_order_id: inner.id.clone(),
+                    is_closed: true,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -1013,11 +987,13 @@ impl MarketActivityModel {
             MarketEvent::IncreaseLimitOrderTriggerPaymentEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                open_limit_order = Some(OpenLimitOrder {
+                current_limit_order = Some(CurrentLimitOrder {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     limit_order_id: inner.id.clone(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -1047,11 +1023,13 @@ impl MarketActivityModel {
             MarketEvent::DecreaseLimitOrderTriggerPaymentEvent(inner) => {
                 let owner_addr = object_owners.get(&inner.position.get_reference_address());
 
-                open_limit_order = Some(OpenLimitOrder {
+                current_limit_order = Some(CurrentLimitOrder {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     limit_order_id: inner.id.clone(),
+                    is_closed: false,
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 MarketActivityHelper {
@@ -1109,12 +1087,9 @@ impl MarketActivityModel {
                 transaction_timestamp: txn_timestamp,
             },
             trade,
-            open_position,
-            closed_position,
-            open_tpsl,
-            closed_tpsl,
-            open_limit_order,
-            closed_limit_order,
+            current_position,
+            current_tpsl,
+            current_limit_order,
         )
     }
 }
