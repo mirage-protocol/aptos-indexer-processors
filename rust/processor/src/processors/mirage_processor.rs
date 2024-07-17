@@ -412,9 +412,9 @@ fn insert_current_positions_query(
                 event_index.eq(excluded(event_index)),
                 inserted_at.eq(excluded(inserted_at)),
             )),
-        Some("WHERE current_limit_orders.last_transaction_version < excluded.last_transaction_version 
-            OR (current_limit_orders.last_transaction_version = excluded.last_transaction_version 
-                AND current_limit_orders.event_index <= excluded.event_index)")
+        Some("WHERE current_positions.last_transaction_version < excluded.last_transaction_version 
+            OR (current_positions.last_transaction_version = excluded.last_transaction_version 
+                AND current_positions.event_index <= excluded.event_index)")
     )
 }
 
@@ -437,9 +437,9 @@ fn insert_current_tpsls_query(
                 event_index.eq(excluded(event_index)),
                 inserted_at.eq(excluded(inserted_at)),
             )),
-        Some("WHERE current_limit_orders.last_transaction_version < excluded.last_transaction_version 
-            OR (current_limit_orders.last_transaction_version = excluded.last_transaction_version 
-                AND current_limit_orders.event_index <= excluded.event_index)")
+        Some("WHERE current_tpsls.last_transaction_version < excluded.last_transaction_version 
+            OR (current_tpsls.last_transaction_version = excluded.last_transaction_version 
+                AND current_tpsls.event_index <= excluded.event_index)")
     )
 }
 
