@@ -707,7 +707,7 @@ impl MarketActivityModel {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
-                    is_closed: false,
+                    is_closed: true,
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
