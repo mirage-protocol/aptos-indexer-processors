@@ -26,7 +26,7 @@ use crate::{
     gap_detectors::ProcessingResult,
 };
 
-use aptos_types::account_address::create_resource_address;
+use aptos_types::account_address::{create_resource_address, AccountAddress};
 use ahash::AHashMap;
 use anyhow::bail;
 use aptos_protos::transaction::v1::{transaction::TxnData, write_set_change::Change, Transaction};
@@ -36,11 +36,12 @@ use diesel::{pg::Pg, query_builder::QueryFragment, upsert::excluded, ExpressionM
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use tracing::error;
+use crate::db::postgres::models::resources::FromWriteResource;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct MirageProcessorConfig {
-    pub mirage_module_address: String,
+    pub deployer_address: String,
 }
 
 pub struct MirageProcessor {
@@ -68,8 +69,8 @@ impl Debug for MirageProcessor {
         let state = &self.connection_pool.state();
         write!(
             f,
-            "MirageProcessor {{ connections: {:?}  idle_connections: {:?} mirage module address: {}}}",
-            state.connections, state.idle_connections, self.config.mirage_module_address
+            "MirageProcessor {{ connections: {:?}  idle_connections: {:?} deployer address: {}}}",
+            state.connections, state.idle_connections, self.config.deployer_address
         )
     }
 }
@@ -592,7 +593,7 @@ impl ProcessorTrait for MirageProcessor {
             current_tpsls,
             current_limit_orders,
             market_activities,
-        ) = parse_mirage_protocol(&transactions, &self.config.mirage_module_address).await;
+        ) = parse_mirage_protocol(&transactions, &self.config.deployer_address).await;
 
         let processing_duration_in_secs = processing_start.elapsed().as_secs_f64();
         let db_insertion_start = std::time::Instant::now();
@@ -673,8 +674,9 @@ pub async fn parse_mirage_protocol(
     Vec<CurrentLimitOrder>,
     Vec<MarketActivityModel>,
 ) {
-    let mirage_module_address = create_resource_address(deployer_address, "MIRAGE");
-    let market_module_address = create_resource_address(deployer_address, "MIRAGE_MARKET");
+    let deployer_account_address = AccountAddress::from_hex(deployer_address).expect("Failed to parse deployer address");
+    let mirage_module_address = &create_resource_address(deployer_account_address, "MIRAGE".as_bytes()).to_standard_string();
+    let market_module_address = &create_resource_address(deployer_account_address, "MIRAGE_MARKET".as_bytes()).to_standard_string();
 
     let mut mirage_debt_stores = vec![];
     let mut fee_stores = vec![];
@@ -735,12 +737,12 @@ pub async fn parse_mirage_protocol(
             for wsc in transaction_info.changes.iter() {
                 if let Change::WriteResource(wr) = wsc.change.as_ref().unwrap() {
                     if let Some(object) =
-                        ObjectWithMetadata::from_write_resource(wr, txn_version).unwrap()
+                        ObjectWithMetadata::from_write_resource(wr).unwrap()
                     {
                         object_owners.insert(standardize_address(&wr.address.to_string()), object.object_core.get_owner_address());
                     }
                     if let Some(strategy) =
-                        Strategy::from_write_resource(wr, txn_version, mirage_module_address).unwrap()
+                        Strategy::from_write_resource(wr, txn_version, market_module_address).unwrap()
                     {
                         strategy_objects.insert(standardize_address(&wr.address.to_string()), strategy);
                     }
@@ -833,7 +835,7 @@ pub async fn parse_mirage_protocol(
                             index as i64,
                             txn_version,
                             txn_timestamp,
-                            mirage_module_address,
+                            market_module_address,
                         )
                         .unwrap_or_else(|e| {
                             tracing::error!(
@@ -853,7 +855,7 @@ pub async fn parse_mirage_protocol(
                         wsc_index,
                         txn_timestamp,
                         &object_owners,
-                        mirage_module_address,
+                        market_module_address,
                     )
                     .unwrap()
                     {
@@ -865,7 +867,7 @@ pub async fn parse_mirage_protocol(
                         wsc_index,
                         txn_timestamp,
                         &object_owners,
-                        mirage_module_address,
+                        market_module_address,
                     )
                     .unwrap()
                     {
@@ -878,7 +880,7 @@ pub async fn parse_mirage_protocol(
                         txn_timestamp,
                         &object_owners,
                         &strategy_objects,
-                        mirage_module_address,
+                        market_module_address,
                     )
                     .unwrap()
                     {

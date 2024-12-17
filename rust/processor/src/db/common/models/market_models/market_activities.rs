@@ -147,7 +147,7 @@ impl MarketActivityModel {
     pub fn from_transaction(
         transaction: &TransactionPB,
         object_owners: &ObjectOwnerMapping,
-        mirage_module_address: &str,
+        market_module_address: &str,
     ) -> (
         Vec<Trade>,
         Vec<CurrentPosition>,
@@ -181,7 +181,7 @@ impl MarketActivityModel {
          let txn_timestamp = parse_timestamp(txn_timestamp, txn_version);
 
         for (index, event) in events.iter().enumerate() {
-            let maybe_market_event = MarketEvent::from_event(event, txn_version, mirage_module_address).unwrap();
+            let maybe_market_event = MarketEvent::from_event(event, txn_version, market_module_address).unwrap();
 
             if let Some(market_event) = maybe_market_event {
                 let (

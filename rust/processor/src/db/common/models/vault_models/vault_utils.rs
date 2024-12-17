@@ -1,8 +1,8 @@
 // Copyright © Mirage Protocol
 
 use crate::{
+    db::postgres::models::default_models::move_resources::MoveResource,
     db::common::models::{
-        default_models::move_resources::MoveResource,
         rebase::{Base, Rebase},
         token_v2_models::v2_token_utils::ResourceReference,
     },

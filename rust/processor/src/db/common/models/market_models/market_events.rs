@@ -230,91 +230,91 @@ pub enum MarketEvent {
 }
 
 impl MarketEvent {
-    pub fn is_event_supported(event_type: &str, mirage_module_address: &str) -> bool {
+    pub fn is_event_supported(event_type: &str, market_module_address: &str) -> bool {
         [
-            format!("{}::market::UpdateFundingEvent", mirage_module_address),
-            format!("{}::market::OpenPositionEvent", mirage_module_address),
-            format!("{}::market::ClosePositionEvent", mirage_module_address),
-            format!("{}::market::IncreaseMarginEvent", mirage_module_address),
-            format!("{}::market::DecreaseMarginEvent", mirage_module_address),
-            format!("{}::market::IncreasePositionSizeEvent", mirage_module_address),
-            format!("{}::market::DecreasePositionSizeEvent", mirage_module_address),
-            format!("{}::market::LiquidatePositionEvent", mirage_module_address),
-            format!("{}::tpsl::PlaceTpslEvent", mirage_module_address),
-            format!("{}::tpsl::UpdateTpslEvent", mirage_module_address),
-            format!("{}::tpsl::CancelTpslEvent", mirage_module_address),
-            format!("{}::tpsl::TriggerTpslEvent", mirage_module_address),
-            format!("{}::limit_order::PlaceLimitOrderEvent", mirage_module_address),
-            format!("{}::limit_order::UpdateLimitOrderEvent", mirage_module_address),
-            format!("{}::limit_order::CancelLimitOrderEvent", mirage_module_address),
-            format!("{}::limit_order::TriggerLimitOrderEvent", mirage_module_address),
+            format!("{}::market::UpdateFundingEvent", market_module_address),
+            format!("{}::market::OpenPositionEvent", market_module_address),
+            format!("{}::market::ClosePositionEvent", market_module_address),
+            format!("{}::market::IncreaseMarginEvent", market_module_address),
+            format!("{}::market::DecreaseMarginEvent", market_module_address),
+            format!("{}::market::IncreasePositionSizeEvent", market_module_address),
+            format!("{}::market::DecreasePositionSizeEvent", market_module_address),
+            format!("{}::market::LiquidatePositionEvent", market_module_address),
+            format!("{}::tpsl::PlaceTpslEvent", market_module_address),
+            format!("{}::tpsl::UpdateTpslEvent", market_module_address),
+            format!("{}::tpsl::CancelTpslEvent", market_module_address),
+            format!("{}::tpsl::TriggerTpslEvent", market_module_address),
+            format!("{}::limit_order::PlaceLimitOrderEvent", market_module_address),
+            format!("{}::limit_order::UpdateLimitOrderEvent", market_module_address),
+            format!("{}::limit_order::CancelLimitOrderEvent", market_module_address),
+            format!("{}::limit_order::TriggerLimitOrderEvent", market_module_address),
         ]
         .contains(&event_type.to_string())
     }
 
-    pub fn from_event(event: &Event, txn_version: i64, mirage_module_address: &str) -> Result<Option<Self>> {
+    pub fn from_event(event: &Event, txn_version: i64, market_module_address: &str) -> Result<Option<Self>> {
         let type_str: String = event.type_str.clone();
         let data = event.data.as_str();
 
-        if !Self::is_event_supported(type_str.as_str(), mirage_module_address) {
+        if !Self::is_event_supported(type_str.as_str(), market_module_address) {
             return Ok(None);
         }
 
         match type_str.clone() {
-            x if x == format!("{}::market::UpdateFundingEvent", mirage_module_address) => {
+            x if x == format!("{}::market::UpdateFundingEvent", market_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::UpdateFundingEvent(inner)))
             },
-            x if x == format!("{}::market::OpenPositionEvent", mirage_module_address) => {
+            x if x == format!("{}::market::OpenPositionEvent", market_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::OpenPositionEvent(inner)))
             },
-            x if x == format!("{}::market::ClosePositionEvent", mirage_module_address) => {
+            x if x == format!("{}::market::ClosePositionEvent", market_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::ClosePositionEvent(inner)))
             },
-            x if x == format!("{}::market::IncreaseMarginEvent", mirage_module_address) => {
+            x if x == format!("{}::market::IncreaseMarginEvent", market_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::IncreaseMarginEvent(inner)))
             },
-            x if x == format!("{}::market::DecreaseMarginEvent", mirage_module_address) => {
+            x if x == format!("{}::market::DecreaseMarginEvent", market_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::DecreaseMarginEvent(inner)))
             },
-            x if x == format!("{}::market::IncreasePositionSizeEvent", mirage_module_address) => {
+            x if x == format!("{}::market::IncreasePositionSizeEvent", market_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::IncreasePositionSizeEvent(inner)))
             },
-            x if x == format!("{}::market::DecreasePositionSizeEvent", mirage_module_address) => {
+            x if x == format!("{}::market::DecreasePositionSizeEvent", market_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::DecreasePositionSizeEvent(inner)))
             },
-            x if x == format!("{}::market::LiquidatePositionEvent", mirage_module_address) => {
+            x if x == format!("{}::market::LiquidatePositionEvent", market_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::LiquidatePositionEvent(inner)))
             },
-            x if x == format!("{}::tpsl::PlaceTpslEvent", mirage_module_address) => {
+            x if x == format!("{}::tpsl::PlaceTpslEvent", market_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::PlaceTpslEvent(inner)))
             },
-            x if x == format!("{}::tpsl::UpdateTpslEvent", mirage_module_address) => {
+            x if x == format!("{}::tpsl::UpdateTpslEvent", market_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::UpdateTpslEvent(inner)))
             },
-            x if x == format!("{}::tpsl::CancelTpslEvent", mirage_module_address) => {
+            x if x == format!("{}::tpsl::CancelTpslEvent", market_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::CancelTpslEvent(inner)))
             },
-            x if x == format!("{}::tpsl::TriggerTpslEvent", mirage_module_address) => {
+            x if x == format!("{}::tpsl::TriggerTpslEvent", market_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::TriggerTpslEvent(inner)))
             },
-            x if x == format!("{}::limit_order::PlaceLimitOrderEvent", mirage_module_address) => {
+            x if x == format!("{}::limit_order::PlaceLimitOrderEvent", market_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::PlaceLimitOrderEvent(inner)))
             },
-            x if x == format!("{}::limit_order::UpdateLimitOrderEvent", mirage_module_address) => {
+            x if x == format!("{}::limit_order::UpdateLimitOrderEvent", market_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::UpdateLimitOrderEvent(inner)))
             },
-            x if x == format!("{}::limit_order::CancelLimitOrderEvent", mirage_module_address) => {
+            x if x == format!("{}::limit_order::CancelLimitOrderEvent", market_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::CancelLimitOrderEvent(inner)))
             },
-            x if x == format!("{}::limit_order::TriggerLimitOrderEvent", mirage_module_address) => {
+            x if x == format!("{}::limit_order::TriggerLimitOrderEvent", market_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::TriggerLimitOrderEvent(inner)))
             },

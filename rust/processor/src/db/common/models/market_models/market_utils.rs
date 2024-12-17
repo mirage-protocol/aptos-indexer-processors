@@ -5,9 +5,10 @@
 #![allow(clippy::extra_unused_lifetimes)]
 
 use crate::{
+    db::postgres::models::default_models::move_resources::MoveResource,
     db::common::models::{
-        default_models::move_resources::MoveResource, signed64::Signed64,
-        token_v2_models::v2_token_utils::ResourceReference,
+        signed64::Signed64,
+        token_v2_models::v2_token_utils::ResourceReference
     },
     utils::util::deserialize_from_string,
 };
@@ -171,10 +172,10 @@ impl MarketCollection {
     pub fn from_write_resource(
         write_resource: &WriteResource,
         txn_version: i64,
-        mirage_module_address: &str,
+        market_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
-        if !MarketResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
+        if !MarketResource::is_resource_supported(type_str.as_str(), market_module_address) {
             return Ok(None);
         }
         let resource = MoveResource::from_write_resource(
@@ -185,7 +186,7 @@ impl MarketCollection {
         );
 
         if let MarketResource::MarketCollection(inner) =
-            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, mirage_module_address)?
+            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, market_module_address)?
         {
             Ok(Some(inner))
         } else {
@@ -199,10 +200,10 @@ impl Position {
     pub fn from_write_resource(
         write_resource: &WriteResource,
         txn_version: i64,
-        mirage_module_address: &str,
+        market_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
-        if !MarketResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
+        if !MarketResource::is_resource_supported(type_str.as_str(), market_module_address) {
             return Ok(None);
         }
         let resource = MoveResource::from_write_resource(
@@ -213,7 +214,7 @@ impl Position {
         );
 
         if let MarketResource::Position(inner) =
-            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, mirage_module_address)?
+            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, market_module_address)?
         {
             Ok(Some(inner))
         } else {
@@ -227,10 +228,10 @@ impl LimitOrder {
     pub fn from_write_resource(
         write_resource: &WriteResource,
         txn_version: i64,
-        mirage_module_address: &str,
+        market_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
-        if !MarketResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
+        if !MarketResource::is_resource_supported(type_str.as_str(), market_module_address) {
             return Ok(None);
         }
         let resource = MoveResource::from_write_resource(
@@ -241,7 +242,7 @@ impl LimitOrder {
         );
 
         if let MarketResource::LimitOrder(inner) =
-            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, mirage_module_address)?
+            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, market_module_address)?
         {
             Ok(Some(inner))
         } else {
@@ -255,10 +256,10 @@ impl TpSl {
     pub fn from_write_resource(
         write_resource: &WriteResource,
         txn_version: i64,
-        mirage_module_address: &str
+        market_module_address: &str
     ) -> anyhow::Result<Option<Self>> {
         let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
-        if !MarketResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
+        if !MarketResource::is_resource_supported(type_str.as_str(), market_module_address) {
             return Ok(None);
         }
         let resource = MoveResource::from_write_resource(
@@ -269,7 +270,7 @@ impl TpSl {
         );
 
         if let MarketResource::TpSl(inner) =
-            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, mirage_module_address)?
+            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, market_module_address)?
         {
             Ok(Some(inner))
         } else {
@@ -283,10 +284,10 @@ impl Strategy {
     pub fn from_write_resource(
         write_resource: &WriteResource,
         txn_version: i64,
-        mirage_module_address: &str
+        market_module_address: &str
     ) -> anyhow::Result<Option<Self>> {
         let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
-        if !MarketResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
+        if !MarketResource::is_resource_supported(type_str.as_str(), market_module_address) {
             return Ok(None);
         }
         let resource: MoveResource = MoveResource::from_write_resource(
@@ -297,7 +298,7 @@ impl Strategy {
         );
 
         if let MarketResource::Strategy(inner) =
-            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, mirage_module_address)?
+            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, market_module_address)?
         {
             Ok(Some(inner))
         } else {
@@ -318,13 +319,13 @@ pub enum MarketResource {
 }
 
 impl MarketResource {
-    pub fn is_resource_supported(data_type: &str, mirage_module_address: &str) -> bool {
+    pub fn is_resource_supported(data_type: &str, market_module_address: &str) -> bool {
         [
-            format!("{}::market::Market", mirage_module_address),
-            format!("{}::market::Position", mirage_module_address),
-            format!("{}::tpsl::TpSl", mirage_module_address),
-            format!("{}::limit_order::LimitOrder", mirage_module_address),
-            format!("{}::strategy::Strategy", mirage_module_address),
+            format!("{}::market::Market", market_module_address),
+            format!("{}::market::Position", market_module_address),
+            format!("{}::tpsl::TpSl", market_module_address),
+            format!("{}::limit_order::LimitOrder", market_module_address),
+            format!("{}::strategy::Strategy", market_module_address),
         ]
         .contains(&data_type.to_string())
     }
@@ -333,23 +334,23 @@ impl MarketResource {
         data_type: &str,
         data: &serde_json::Value,
         txn_version: i64,
-        mirage_module_address: &str,
+        market_module_address: &str,
     ) -> Result<Self> {
         match data_type {
-            x if x == format!("{}::market::Market", mirage_module_address) => {
+            x if x == format!("{}::market::Market", market_module_address) => {
                 serde_json::from_value(data.clone())
                     .map(|inner| Some(Self::MarketCollection(inner)))
             },
-            x if x == format!("{}::market::Position", mirage_module_address) => {
+            x if x == format!("{}::market::Position", market_module_address) => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::Position(inner)))
             },
-            x if x == format!("{}::market::Strategy", mirage_module_address) => {
+            x if x == format!("{}::market::Strategy", market_module_address) => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::Strategy(inner)))
             },
-            x if x == format!("{}::tpsl::TpSl", mirage_module_address) => {
+            x if x == format!("{}::tpsl::TpSl", market_module_address) => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::TpSl(inner)))
             },
-            x if x == format!("{}::limit_order::LimitOrder", mirage_module_address) => {
+            x if x == format!("{}::limit_order::LimitOrder", market_module_address) => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::LimitOrder(inner)))
             },
             _ => Ok(None),

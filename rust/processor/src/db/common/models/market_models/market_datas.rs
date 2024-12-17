@@ -89,9 +89,9 @@ impl MarketCollectionModel {
         write_set_change_index: i64,
         txn_version: i64,
         txn_timestamp: chrono::NaiveDateTime,
-        mirage_module_address: &str,
+        market_module_address: &str,
     ) -> anyhow::Result<Option<(MarketCollectionModel, MarketConfigModel)>> {
-        if let Some(inner) = &MarketCollection::from_write_resource(write_resource, txn_version, mirage_module_address)? {
+        if let Some(inner) = &MarketCollection::from_write_resource(write_resource, txn_version, market_module_address)? {
             // the new coin type
             let collection_id = standardize_address(&write_resource.address.to_string());
 
@@ -201,9 +201,9 @@ impl PositionModel {
         write_set_change_index: i64,
         txn_timestamp: chrono::NaiveDateTime,
         object_owners: &ObjectOwnerMapping,
-        mirage_module_address: &str,
+        market_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
-        if let Some(inner) = &Position::from_write_resource(write_resource, txn_version, mirage_module_address)? {
+        if let Some(inner) = &Position::from_write_resource(write_resource, txn_version, market_module_address)? {
             let position_id = standardize_address(&write_resource.address.to_string());
             if let Some(owner_addr) = object_owners.get(&position_id) {
                 return Ok(Some(Self {
@@ -237,9 +237,9 @@ impl TpSlModel {
         write_set_change_index: i64,
         txn_timestamp: chrono::NaiveDateTime,
         object_owners: &ObjectOwnerMapping,
-        mirage_module_address: &str,
+        market_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
-        if let Some(inner) = &TpSl::from_write_resource(write_resource, txn_version, mirage_module_address)? {
+        if let Some(inner) = &TpSl::from_write_resource(write_resource, txn_version, market_module_address)? {
             let strategy_id = standardize_address(&write_resource.address.to_string());
             if let Some(position_id) = object_owners.get(&strategy_id) {
                 return Ok(Some(Self {
@@ -291,9 +291,9 @@ impl LimitOrderModel {
         txn_timestamp: chrono::NaiveDateTime,
         object_owners: &ObjectOwnerMapping,
         strategy_objects: &StrategyObjectMapping,
-        mirage_module_address: &str,
+        market_module_address: &str,
     ) -> anyhow::Result<Option<LimitOrderModel>> {
-        if let Some(inner) = &LimitOrder::from_write_resource(write_resource, txn_version, mirage_module_address)? {
+        if let Some(inner) = &LimitOrder::from_write_resource(write_resource, txn_version, market_module_address)? {
             let strategy_id = standardize_address(&write_resource.address.to_string());
             if let (Some(position_id), Some(strategy)) = (object_owners.get(&strategy_id), strategy_objects.get(&strategy_id)) {
                 return Ok(Some(LimitOrderModel {
