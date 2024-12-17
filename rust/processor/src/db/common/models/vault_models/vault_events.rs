@@ -52,6 +52,13 @@ pub struct RepayEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MergeVaultEvent {
+    pub collection: ResourceReference,
+    pub dst_vault: ResourceReference,
+    pub src_vault: ResourceReference,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LiquidationEvent {
     pub collection: ResourceReference,
     pub vault: ResourceReference,
@@ -82,6 +89,7 @@ pub enum VaultEvent {
     RemoveCollateralEvent(RemoveCollateralEvent),
     BorrowEvent(BorrowEvent),
     RepayEvent(RepayEvent),
+    MergeVaultEvent(MergeVaultEvent),
     LiquidationEvent(LiquidationEvent),
     InterestRateChangeEvent(InterestRateChangeEvent),
 }
@@ -93,6 +101,7 @@ impl VaultEvent {
             format!("{}::vault::RemoveCollateralEvent", mirage_module_address),
             format!("{}::vault::BorrowEvent", mirage_module_address),
             format!("{}::vault::RepayEvent", mirage_module_address),
+            format!("{}::vault::MergeVaultEvent", mirage_module_address),
             format!("{}::vault::LiquidationEvent", mirage_module_address),
             format!("{}::vault::InterestRateChangeEvent", mirage_module_address),
         ]
@@ -120,6 +129,9 @@ impl VaultEvent {
             },
             x if x == format!("{}::vault::RepayEvent", mirage_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(VaultEvent::RepayEvent(inner)))
+            },
+            x if x == format!("{}::vault::MergeVaultEvent", mirage_module_address) => {
+                serde_json::from_str(data).map(|inner| Some(VaultEvent::MergeVaultEvent(inner)))
             },
             x if x == format!("{}::vault::LiquidationEvent", mirage_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(VaultEvent::LiquidationEvent(inner)))

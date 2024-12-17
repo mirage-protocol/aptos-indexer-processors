@@ -14,8 +14,6 @@ CREATE TABLE market_configs (
   max_taker_fee NUMERIC NOT NULL,
   min_maker_fee NUMERIC NOT NULL,
   max_maker_fee NUMERIC NOT NULL,
-  liquidation_fee NUMERIC NOT NULL,
-  referrer_fee NUMERIC NOT NULL,
 
   min_funding_rate NUMERIC NOT NULL,
   max_funding_rate NUMERIC NOT NULL,
@@ -29,6 +27,7 @@ CREATE TABLE market_configs (
   max_leverage NUMERIC NOT NULL,
   min_order_size NUMERIC NOT NULL,
   max_order_size NUMERIC NOT NULL,
+  min_margin_amount NUMERIC NOT NULL,
 
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -76,17 +75,15 @@ CREATE TABLE limit_order_datas (
   transaction_version BIGINT NOT NULL,
   write_set_change_index BIGINT NOT NULL,
 
-  market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
-  owner_addr VARCHAR(66) NOT NULL,
-  limit_order_id NUMERIC NOT NULL,
+  strategy_id VARCHAR(66) NOT NULL,
 
-  is_increase BOOLEAN NOT NULL,
+  is_decrease_only BOOLEAN NOT NULL,
   position_size NUMERIC NOT NULL,
+  is_long BOOLEAN NOT NULL,
   margin NUMERIC NOT NULL,
   trigger_price NUMERIC NOT NULL,
   triggers_above BOOLEAN NOT NULL,
-  trigger_payment NUMERIC NOT NULL,
   max_price_slippage NUMERIC NOT NULL,
   expiration NUMERIC NOT NULL,
 
@@ -95,9 +92,9 @@ CREATE TABLE limit_order_datas (
   -- Constraints
   PRIMARY KEY (transaction_version, write_set_change_index)
 );
-CREATE INDEX limit_order_datas_mid on limit_order_datas (market_id);
-CREATE INDEX limit_order_datas_oa on limit_order_datas (owner_addr);
-CREATE INDEX limit_orders_datas_oa_mid on limit_order_datas (owner_addr, market_id);
+CREATE INDEX limit_order_datas_sid on limit_order_datas (strategy_id);
+CREATE INDEX limit_order_datas_pid on limit_order_datas (position_id);
+CREATE INDEX limit_order_datas_psid on limit_order_datas (position_id, strategy_id);
 
 -- current positions
 CREATE TABLE current_positions (
@@ -114,8 +111,7 @@ CREATE TABLE current_positions (
   -- Constraints
   PRIMARY KEY (position_id)
 );
-CREATE INDEX current_positions_mid on current_positions (market_id, position_id);
-CREATE INDEX current_positions_pid on current_positions (position_id);
+CREATE INDEX current_positions_mid on current_positions (market_id);
 
 -- current tpsl
 CREATE TABLE current_tpsls (
@@ -123,6 +119,7 @@ CREATE TABLE current_tpsls (
 
   market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
+  strategy_id VARCHAR(66) NOT NULL,
 
   is_closed BOOLEAN NOT NULL,
 
@@ -130,10 +127,10 @@ CREATE TABLE current_tpsls (
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
   -- Constraints
-  PRIMARY KEY (position_id)
+  PRIMARY KEY (strategy_id)
 );
-CREATE INDEX current_tpsl_mid on current_tpsls (market_id, position_id);
 CREATE INDEX current_tpsl_pid on current_tpsls (position_id);
+CREATE INDEX current_tpsl_mid on current_tpsls (market_id);
 
 -- open limit orders
 CREATE TABLE current_limit_orders (
@@ -141,7 +138,7 @@ CREATE TABLE current_limit_orders (
 
   market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
-  limit_order_id NUMERIC NOT NULL,
+  strategy_id VARCHAR(66) NOT NULL,
 
   is_closed BOOLEAN NOT NULL,
 
@@ -149,9 +146,10 @@ CREATE TABLE current_limit_orders (
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
   -- Constraints
-  PRIMARY KEY (position_id, limit_order_id)
+  PRIMARY KEY (strategy_id)
 );
-CREATE INDEX current_limit_orders_mid on current_limit_orders (market_id, position_id);
+CREATE INDEX current_limit_orders_pid on current_limit_orders (position_id);
+CREATE INDEX current_limit_orders_mid on current_limit_orders (market_id);
 
 -- positions
 CREATE TABLE position_datas (
@@ -162,9 +160,11 @@ CREATE TABLE position_datas (
   position_id VARCHAR(66) NOT NULL,
   owner_addr VARCHAR(66) NOT NULL,
 
-  opening_price NUMERIC NOT NULL,
-  is_long BOOLEAN NOT NULL,
+  last_settled_price NUMERIC NOT NULL,
+  last_open_timestamp NUMERIC NOT NULL,
+  side VARCHAR(8) NOT NULL,
   margin_amount NUMERIC NOT NULL,
+  total_strategy_margin NUMERIC NOT NULL,
   position_size NUMERIC NOT NULL,
   last_funding_accumulated NUMERIC NOT NULL,
 
@@ -182,22 +182,20 @@ CREATE TABLE tpsl_datas (
   transaction_version BIGINT NOT NULL,
   write_set_change_index BIGINT NOT NULL,
 
-  market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
-  owner_addr VARCHAR(66) NOT NULL,
+  strategy_id VARCHAR(66) NOT NULL,
 
   take_profit_price NUMERIC NOT NULL,
   stop_loss_price NUMERIC NOT NULL,
-  trigger_payment_amount NUMERIC NOT NULL,
 
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
   -- Constraints
   PRIMARY KEY (transaction_version, write_set_change_index)
 );
-CREATE INDEX tpsl_datas_oa on tpsl_datas (owner_addr);
-CREATE INDEX tpsl_datas_mid on tpsl_datas (market_id);
-CREATE INDEX tpsl_datas_oa_mid on tpsl_datas (owner_addr, market_id);
+CREATE INDEX tpsl_datas_pid on tpsl_datas (position_id);
+CREATE INDEX tpsl_datas_sid on tpsl_datas (strategy_id);
+CREATE INDEX tpsl_datas_psid on tpsl_datas (strategy_id, position_id);
 
 -- trades
 CREATE TABLE trade_datas (
@@ -232,8 +230,8 @@ CREATE TABLE market_activities (
 
   market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66),
+  strategy_id VARCHAR(66),
   event_type VARCHAR(5000) NOT NULL,
-  id NUMERIC,
   owner_addr VARCHAR(66),
 
   perp_price NUMERIC,
@@ -247,10 +245,9 @@ CREATE TABLE market_activities (
   stop_loss_price NUMERIC,
   trigger_price NUMERIC,
   max_price_slippage NUMERIC,
-  is_increase BOOLEAN,
+  is_decrease_only BOOLEAN,
   triggers_above BOOLEAN,
   expiration NUMERIC,
-  trigger_payment_amount NUMERIC,
   next_funding_rate NUMERIC,
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),

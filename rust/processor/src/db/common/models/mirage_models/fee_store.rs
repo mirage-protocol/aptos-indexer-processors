@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 pub struct FeeStoreModel {
     pub transaction_version: i64,
     pub write_set_change_index: i64,
-    pub asset_type: String,
+    pub object_address: String,
     pub net_accumulated_fees: BigDecimal,
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
@@ -37,12 +37,12 @@ impl FeeStoreModel {
     ) -> anyhow::Result<Option<Self>> {
         if let Some(inner) = &FeeStore::from_write_resource(write_resource, txn_version, mirage_module_address)? {
             // the new coin type
-            let asset_type = standardize_address(&write_resource.address.to_string());
+            let object_address = standardize_address(&write_resource.address.to_string());
 
             return Ok(Some(Self {
                 transaction_version: txn_version,
                 write_set_change_index,
-                asset_type: asset_type.clone(),
+                object_address,
                 transaction_timestamp: txn_timestamp,
                 net_accumulated_fees: inner.net_accumulated_fees.clone(),
             }));

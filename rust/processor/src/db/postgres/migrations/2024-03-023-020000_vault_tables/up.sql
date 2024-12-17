@@ -15,6 +15,8 @@ CREATE TABLE vault_collection_configs (
   liquidation_multiplier NUMERIC NOT NULL,
   borrow_fee NUMERIC NOT NULL,
   protocol_liquidation_fee NUMERIC NOT NULL,
+  min_collateral_amount NUMERIC NOT NULL,
+  max_collection_debt_amount NUMERIC NOT NULL,
 
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
@@ -78,6 +80,7 @@ CREATE TABLE vault_activities (
 
   collection_id VARCHAR(66) NOT NULL,
   vault_id VARCHAR(66),
+  src_vault_id VARCHAR(66),
   event_type VARCHAR(5000) NOT NULL,
   owner_addr VARCHAR(66),
 

@@ -5,9 +5,9 @@
 #![allow(clippy::extra_unused_lifetimes)]
 #![allow(clippy::unused_unit)]
 
-use super::market_utils::{LimitOrders, MarketCollection};
+use super::market_utils::{LimitOrder, MarketCollection};
 use crate::{
-    db::common::models::market_models::market_utils::{Position, TpSl},
+    db::common::models::market_models::market_utils::{Position, TpSl, StrategyObjectMapping},
     schema::{limit_order_datas, market_configs, market_datas, position_datas, tpsl_datas},
     utils::util::{bigdecimal_to_u64, parse_timestamp_secs, standardize_address, ObjectOwnerMapping},
 };
@@ -16,6 +16,7 @@ use bigdecimal::BigDecimal;
 use diesel::prelude::*;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
+
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(transaction_version, write_set_change_index))]
@@ -32,8 +33,6 @@ pub struct MarketConfigModel {
     pub max_taker_fee: BigDecimal,
     pub min_maker_fee: BigDecimal,
     pub max_maker_fee: BigDecimal,
-    pub liquidation_fee: BigDecimal,
-    pub referrer_fee: BigDecimal,
 
     pub min_funding_rate: BigDecimal,
     pub max_funding_rate: BigDecimal,
@@ -47,6 +46,7 @@ pub struct MarketConfigModel {
     pub max_leverage: BigDecimal,
     pub min_order_size: BigDecimal,
     pub max_order_size: BigDecimal,
+    pub min_margin_amount: BigDecimal,
 
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
@@ -137,8 +137,6 @@ impl MarketCollectionModel {
                     max_taker_fee: inner.config.fees.max_taker_fee.clone(),
                     min_maker_fee: inner.config.fees.min_maker_fee.clone(),
                     max_maker_fee: inner.config.fees.max_maker_fee.clone(),
-                    liquidation_fee: inner.config.fees.liquidation_fee.clone(),
-                    referrer_fee: inner.config.fees.referrer_fee.clone(),
                     min_funding_rate: inner.config.funding.min_funding_rate.clone(),
                     max_funding_rate: inner.config.funding.max_funding_rate.clone(),
                     base_funding_rate: inner.config.funding.base_funding_rate.clone(),
@@ -149,6 +147,7 @@ impl MarketCollectionModel {
                     max_leverage: inner.config.max_leverage.clone(),
                     min_order_size: inner.config.min_order_size.clone(),
                     max_order_size: inner.config.max_order_size.clone(),
+                    min_margin_amount: inner.config.min_margin_amount.clone(),
                     transaction_timestamp: txn_timestamp,
                 },
             )));
@@ -168,9 +167,11 @@ pub struct PositionModel {
     pub market_id: String,
     pub position_id: String,
 
-    pub opening_price: BigDecimal,
-    pub is_long: bool,
+    pub last_settled_price: BigDecimal,
+    pub last_open_timestamp: BigDecimal,
+    pub side: String,
     pub margin_amount: BigDecimal,
+    pub total_strategy_margin: BigDecimal,
     pub position_size: BigDecimal,
     pub last_funding_accumulated: BigDecimal,
 
@@ -184,13 +185,11 @@ pub struct TpSlModel {
     pub transaction_version: i64,
     pub write_set_change_index: i64,
 
-    pub owner_addr: String,
-    pub market_id: String,
     pub position_id: String,
+    pub strategy_id: String,
 
     pub take_profit_price: BigDecimal,
     pub stop_loss_price: BigDecimal,
-    pub trigger_payment_amount: BigDecimal,
 
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
@@ -213,9 +212,11 @@ impl PositionModel {
                     owner_addr: owner_addr.clone(),
                     market_id: inner.market.get_reference_address(),
                     position_id,
-                    opening_price: inner.opening_price.clone(),
-                    is_long: inner.is_long,
+                    last_settled_price: inner.last_settled_price.clone(),
+                    last_open_timestamp: inner.last_open_timestamp.clone(),
+                    side: inner.side.to_string(),
                     margin_amount: inner.margin_amount.clone(),
+                    total_strategy_margin: inner.total_strategy_margin_amount.clone(),
                     position_size: inner.position_size.clone(),
                     last_funding_accumulated: inner.last_funding_accumulated.to_bigdecimal(),
                     transaction_timestamp: txn_timestamp,
@@ -239,17 +240,15 @@ impl TpSlModel {
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         if let Some(inner) = &TpSl::from_write_resource(write_resource, txn_version, mirage_module_address)? {
-            let position_id = standardize_address(&write_resource.address.to_string());
-            if let Some(owner_addr) = object_owners.get(&position_id) {
+            let strategy_id = standardize_address(&write_resource.address.to_string());
+            if let Some(position_id) = object_owners.get(&strategy_id) {
                 return Ok(Some(Self {
                     transaction_version: txn_version,
                     write_set_change_index,
-                    owner_addr: owner_addr.clone(),
-                    market_id: inner.market.get_reference_address(),
-                    position_id,
+                    strategy_id: strategy_id.clone(),
+                    position_id: position_id.clone(),
                     take_profit_price: inner.take_profit_price.clone(),
                     stop_loss_price: inner.stop_loss_price.clone(),
-                    trigger_payment_amount: inner.trigger_payment_amount.clone(),
                     transaction_timestamp: txn_timestamp,
                 }));
             } else {
@@ -268,22 +267,21 @@ pub struct LimitOrderModel {
     pub transaction_version: i64,
     pub write_set_change_index: i64,
 
-    pub market_id: String,
     pub position_id: String,
-    pub owner_addr: String,
-    pub limit_order_id: BigDecimal,
+    pub strategy_id: String,
 
-    pub is_increase: bool,
+    pub is_decrease_only: bool,
     pub position_size: BigDecimal,
+    pub is_long: bool,
     pub margin: BigDecimal,
     pub trigger_price: BigDecimal,
     pub triggers_above: bool,
-    pub trigger_payment: BigDecimal,
     pub max_price_slippage: BigDecimal,
     pub expiration: BigDecimal,
 
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
+
 
 impl LimitOrderModel {
     pub fn get_from_write_resource(
@@ -292,36 +290,29 @@ impl LimitOrderModel {
         write_set_change_index: i64,
         txn_timestamp: chrono::NaiveDateTime,
         object_owners: &ObjectOwnerMapping,
+        strategy_objects: &StrategyObjectMapping,
         mirage_module_address: &str,
-    ) -> anyhow::Result<Option<Vec<LimitOrderModel>>> {
-        if let Some(inner) = &LimitOrders::from_write_resource(write_resource, txn_version, mirage_module_address)? {
-            let position_id = standardize_address(&write_resource.address.to_string());
-            if let Some(owner_addr) = object_owners.get(&position_id) {
-                let mut result = Vec::new();
-                result.reserve_exact(inner.orders.len());
-
-                for order in &inner.orders {
-                    result.push(LimitOrderModel {
+    ) -> anyhow::Result<Option<LimitOrderModel>> {
+        if let Some(inner) = &LimitOrder::from_write_resource(write_resource, txn_version, mirage_module_address)? {
+            let strategy_id = standardize_address(&write_resource.address.to_string());
+            if let (Some(position_id), Some(strategy)) = (object_owners.get(&strategy_id), strategy_objects.get(&strategy_id)) {
+                return Ok(Some(LimitOrderModel {
                         transaction_version: txn_version,
                         write_set_change_index,
-                        owner_addr: owner_addr.clone(),
-                        market_id: inner.market.get_reference_address(),
-                        position_id: position_id.clone(),
-                        limit_order_id: order.id.clone(),
-                        is_increase: order.is_increase,
-                        position_size: order.position_size.clone(),
-                        margin: order.margin_amount.clone(),
-                        trigger_price: order.trigger_price.clone(),
-                        triggers_above: order.triggers_above,
-                        trigger_payment: order.trigger_payment_amount.clone(),
-                        max_price_slippage: order.max_price_slippage.clone(),
-                        expiration: order.expiration.clone(),
+                        position_id: position_id.clone(), 
+                        strategy_id: strategy_id.clone(),
+                        is_decrease_only: inner.is_decrease_only,
+                        position_size: inner.position_size.clone(),
+                        is_long: inner.is_long,
+                        margin: strategy.strategy_margin_amount.clone(),
+                        trigger_price: inner.trigger_price.clone(),
+                        triggers_above: inner.triggers_above,
+                        max_price_slippage: inner.max_price_slippage.clone(),
+                        expiration: inner.expiration.clone(),
                         transaction_timestamp: txn_timestamp,
-                    })
-                }
-                return Ok(Some(result));
+                }))
             } else {
-                // ObjectCore should not be missing, returning from entire function early
+                // ObjectCore and Strategy should not be missing, returning from entire function early
                 return Ok(None);
             }
         }

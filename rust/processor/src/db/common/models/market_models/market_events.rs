@@ -121,18 +121,20 @@ pub struct LiquidatePositionEvent {
 pub struct PlaceTpslEvent {
     pub market: ResourceReference,
     pub position: ResourceReference,
+    pub tpsl: ResourceReference,
+    pub is_long: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub take_profit_price: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub stop_loss_price: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub trigger_payment_amount: BigDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UpdateTpslEvent {
     pub market: ResourceReference,
     pub position: ResourceReference,
+    pub tpsl: ResourceReference,
+    pub is_long: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub take_profit_price: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
@@ -143,39 +145,23 @@ pub struct UpdateTpslEvent {
 pub struct CancelTpslEvent {
     pub market: ResourceReference,
     pub position: ResourceReference,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IncreaseTpslTriggerPaymentEvent {
-    pub market: ResourceReference,
-    pub position: ResourceReference,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub increase_amount: BigDecimal,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct DecreaseTpslTriggerPaymentEvent {
-    pub market: ResourceReference,
-    pub position: ResourceReference,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub decrease_amount: BigDecimal,
+    pub tpsl: ResourceReference,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TriggerTpslEvent {
     pub market: ResourceReference,
     pub position: ResourceReference,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub trigger_payment: BigDecimal,
+    pub tpsl: ResourceReference,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PlaceLimitOrderEvent {
     pub market: ResourceReference,
     pub position: ResourceReference,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub id: BigDecimal,
-    pub is_increase: bool,
+    pub limit_order: ResourceReference,
+    pub is_decrease_only: bool,
+    pub is_long: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub position_size: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
@@ -183,8 +169,6 @@ pub struct PlaceLimitOrderEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub trigger_price: BigDecimal,
     pub triggers_above: bool,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub trigger_payment_amount: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub max_price_slippage: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
@@ -195,8 +179,9 @@ pub struct PlaceLimitOrderEvent {
 pub struct UpdateLimitOrderEvent {
     pub market: ResourceReference,
     pub position: ResourceReference,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub id: BigDecimal,
+    pub limit_order: ResourceReference,
+    pub is_decrease_only: bool,
+    pub is_long: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub position_size: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
@@ -204,8 +189,6 @@ pub struct UpdateLimitOrderEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub trigger_price: BigDecimal,
     pub triggers_above: bool,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub trigger_payment_amount: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub max_price_slippage: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
@@ -216,38 +199,14 @@ pub struct UpdateLimitOrderEvent {
 pub struct CancelLimitOrderEvent {
     pub market: ResourceReference,
     pub position: ResourceReference,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub id: BigDecimal,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IncreaseLimitOrderTriggerPaymentEvent {
-    pub market: ResourceReference,
-    pub position: ResourceReference,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub id: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub increase_amount: BigDecimal,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct DecreaseLimitOrderTriggerPaymentEvent {
-    pub market: ResourceReference,
-    pub position: ResourceReference,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub id: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub decrease_amount: BigDecimal,
+    pub limit_order: ResourceReference,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TriggerLimitOrderEvent {
     pub market: ResourceReference,
     pub position: ResourceReference,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub id: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub trigger_payment_amount: BigDecimal,
+    pub limit_order: ResourceReference,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -263,14 +222,10 @@ pub enum MarketEvent {
     PlaceTpslEvent(PlaceTpslEvent),
     UpdateTpslEvent(UpdateTpslEvent),
     CancelTpslEvent(CancelTpslEvent),
-    IncreaseTpslTriggerPaymentEvent(IncreaseTpslTriggerPaymentEvent),
-    DecreaseTpslTriggerPaymentEvent(DecreaseTpslTriggerPaymentEvent),
     TriggerTpslEvent(TriggerTpslEvent),
     PlaceLimitOrderEvent(PlaceLimitOrderEvent),
     UpdateLimitOrderEvent(UpdateLimitOrderEvent),
     CancelLimitOrderEvent(CancelLimitOrderEvent),
-    IncreaseLimitOrderTriggerPaymentEvent(IncreaseLimitOrderTriggerPaymentEvent),
-    DecreaseLimitOrderTriggerPaymentEvent(DecreaseLimitOrderTriggerPaymentEvent),
     TriggerLimitOrderEvent(TriggerLimitOrderEvent),
 }
 
@@ -285,24 +240,14 @@ impl MarketEvent {
             format!("{}::market::IncreasePositionSizeEvent", mirage_module_address),
             format!("{}::market::DecreasePositionSizeEvent", mirage_module_address),
             format!("{}::market::LiquidatePositionEvent", mirage_module_address),
-            format!("{}::market::PlaceTpslEvent", mirage_module_address),
-            format!("{}::market::UpdateTpslEvent", mirage_module_address),
-            format!("{}::market::CancelTpslEvent", mirage_module_address),
-            format!("{}::market::IncreaseTpslTriggerPaymentEvent", mirage_module_address),
-            format!("{}::market::DecreaseTpslTriggerPaymentEvent", mirage_module_address),
-            format!("{}::market::TriggerTpslEvent", mirage_module_address),
-            format!("{}::market::PlaceLimitOrderEvent", mirage_module_address),
-            format!("{}::market::UpdateLimitOrderEvent", mirage_module_address),
-            format!("{}::market::CancelLimitOrderEvent", mirage_module_address),
-            format!(
-                "{}::market::IncreaseLimitOrderTriggerPaymentEvent",
-                mirage_module_address
-            ),
-            format!(
-                "{}::market::DecreaseLimitOrderTriggerPaymentEvent",
-                mirage_module_address
-            ),
-            format!("{}::market::TriggerLimitOrderEvent", mirage_module_address),
+            format!("{}::tpsl::PlaceTpslEvent", mirage_module_address),
+            format!("{}::tpsl::UpdateTpslEvent", mirage_module_address),
+            format!("{}::tpsl::CancelTpslEvent", mirage_module_address),
+            format!("{}::tpsl::TriggerTpslEvent", mirage_module_address),
+            format!("{}::limit_order::PlaceLimitOrderEvent", mirage_module_address),
+            format!("{}::limit_order::UpdateLimitOrderEvent", mirage_module_address),
+            format!("{}::limit_order::CancelLimitOrderEvent", mirage_module_address),
+            format!("{}::limit_order::TriggerLimitOrderEvent", mirage_module_address),
         ]
         .contains(&event_type.to_string())
     }
@@ -345,57 +290,31 @@ impl MarketEvent {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::LiquidatePositionEvent(inner)))
             },
-            x if x == format!("{}::market::PlaceTpslEvent", mirage_module_address) => {
+            x if x == format!("{}::tpsl::PlaceTpslEvent", mirage_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::PlaceTpslEvent(inner)))
             },
-            x if x == format!("{}::market::UpdateTpslEvent", mirage_module_address) => {
+            x if x == format!("{}::tpsl::UpdateTpslEvent", mirage_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::UpdateTpslEvent(inner)))
             },
-            x if x == format!("{}::market::CancelTpslEvent", mirage_module_address) => {
+            x if x == format!("{}::tpsl::CancelTpslEvent", mirage_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::CancelTpslEvent(inner)))
             },
-            x if x == format!("{}::market::IncreaseTpslTriggerPaymentEvent", mirage_module_address) => {
-                serde_json::from_str(data)
-                    .map(|inner| Some(MarketEvent::IncreaseTpslTriggerPaymentEvent(inner)))
-            },
-            x if x == format!("{}::market::DecreaseTpslTriggerPaymentEvent", mirage_module_address) => {
-                serde_json::from_str(data)
-                    .map(|inner| Some(MarketEvent::DecreaseTpslTriggerPaymentEvent(inner)))
-            },
-            x if x == format!("{}::market::TriggerTpslEvent", mirage_module_address) => {
+            x if x == format!("{}::tpsl::TriggerTpslEvent", mirage_module_address) => {
                 serde_json::from_str(data).map(|inner| Some(MarketEvent::TriggerTpslEvent(inner)))
             },
-            x if x == format!("{}::market::PlaceLimitOrderEvent", mirage_module_address) => {
+            x if x == format!("{}::limit_order::PlaceLimitOrderEvent", mirage_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::PlaceLimitOrderEvent(inner)))
             },
-            x if x == format!("{}::market::UpdateLimitOrderEvent", mirage_module_address) => {
+            x if x == format!("{}::limit_order::UpdateLimitOrderEvent", mirage_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::UpdateLimitOrderEvent(inner)))
             },
-            x if x == format!("{}::market::CancelLimitOrderEvent", mirage_module_address) => {
+            x if x == format!("{}::limit_order::CancelLimitOrderEvent", mirage_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::CancelLimitOrderEvent(inner)))
             },
-            x if x
-                == format!(
-                    "{}::market::IncreaseLimitOrderTriggerPaymentEvent",
-                    mirage_module_address
-                ) =>
-            {
-                serde_json::from_str(data)
-                    .map(|inner| Some(MarketEvent::IncreaseLimitOrderTriggerPaymentEvent(inner)))
-            },
-            x if x
-                == format!(
-                    "{}::market::DecreaseLimitOrderTriggerPaymentEvent",
-                    mirage_module_address
-                ) =>
-            {
-                serde_json::from_str(data)
-                    .map(|inner| Some(MarketEvent::DecreaseLimitOrderTriggerPaymentEvent(inner)))
-            },
-            x if x == format!("{}::market::TriggerLimitOrderEvent", mirage_module_address) => {
+            x if x == format!("{}::limit_order::TriggerLimitOrderEvent", mirage_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::TriggerLimitOrderEvent(inner)))
             },

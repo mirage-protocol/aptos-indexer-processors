@@ -29,6 +29,7 @@ pub struct VaultActivityModel {
     pub event_type: String,
 
     pub vault_id: Option<String>,
+    pub src_vault_id: Option<String>,
     pub owner_addr: Option<String>,
 
     pub collateral_amount: Option<BigDecimal>,
@@ -48,6 +49,7 @@ struct VaultActivityHelper {
     pub collection_id: String,
 
     pub vault_id: Option<String>,
+    pub src_vault_id: Option<String>,
     pub owner_addr: Option<String>,
 
     pub collateral_amount: Option<BigDecimal>,
@@ -122,6 +124,7 @@ impl VaultActivityModel {
                     event_type: String::from("AddCollateralEvent"),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id: Some(inner.vault.get_reference_address()),
+                    src_vault_id: None,
                     owner_addr: owner_addr.cloned(),
                     collateral_amount: Some(inner.collateral_amount.clone()),
                     borrow_amount: None,
@@ -139,6 +142,7 @@ impl VaultActivityModel {
                     event_type: String::from("RemoveCollateralEvent"),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id: Some(inner.vault.get_reference_address()),
+                    src_vault_id: None,
                     owner_addr: owner_addr.cloned(),
                     collateral_amount: Some(inner.collateral_amount.clone()),
                     borrow_amount: None,
@@ -156,6 +160,7 @@ impl VaultActivityModel {
                     event_type: String::from("BorrowEvent"),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id: Some(inner.vault.get_reference_address()),
+                    src_vault_id: None,
                     owner_addr: owner_addr.cloned(),
                     collateral_amount: None,
                     borrow_amount: Some(inner.borrow_amount.clone()),
@@ -173,10 +178,29 @@ impl VaultActivityModel {
                     event_type: String::from("RepayEvent"),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id: Some(inner.vault.get_reference_address()),
+                    src_vault_id: None,
                     owner_addr: owner_addr.cloned(),
                     collateral_amount: None,
                     borrow_amount: Some(inner.borrow_amount.clone()),
                     fee_amount: Some(inner.fee_amount.clone()),
+                    socialized_amount: None,
+                    collateralization_rate_before: None,
+                    collateralization_rate_after: None,
+                    new_interest_per_second: None,
+                }
+            },
+            VaultEvent::MergeVaultEvent(inner) => {
+                let owner_addr = object_owners.get(&inner.src_vault.get_reference_address());
+
+                VaultActivityHelper {
+                    event_type: String::from("MergeVaultEvent"),
+                    collection_id: inner.collection.get_reference_address(),
+                    vault_id: Some(inner.dst_vault.get_reference_address()),
+                    src_vault_id: Some(inner.src_vault.get_reference_address()),
+                    owner_addr: owner_addr.cloned(),
+                    collateral_amount: None,
+                    borrow_amount: None,
+                    fee_amount: None,
                     socialized_amount: None,
                     collateralization_rate_before: None,
                     collateralization_rate_after: None,
@@ -190,6 +214,7 @@ impl VaultActivityModel {
                     event_type: String::from("LiquidationEvent"),
                     collection_id: inner.collection.get_reference_address(),
                     vault_id: Some(inner.vault.get_reference_address()),
+                    src_vault_id: None,
                     owner_addr: owner_addr.cloned(),
                     collateral_amount: Some(inner.collateral_amount.clone()),
                     borrow_amount: Some(inner.borrow_amount.clone()),
@@ -206,6 +231,7 @@ impl VaultActivityModel {
                 event_type: String::from("InterestRateChangeEvent"),
                 collection_id: inner.collection.get_reference_address(),
                 vault_id: None,
+                src_vault_id: None,
                 owner_addr: None,
                 collateral_amount: None,
                 borrow_amount: None,
@@ -225,6 +251,7 @@ impl VaultActivityModel {
             event_index,
             collection_id: vault_activity_helper.collection_id,
             vault_id: vault_activity_helper.vault_id,
+            src_vault_id: vault_activity_helper.src_vault_id,
             owner_addr: vault_activity_helper.owner_addr,
             collateral_amount: vault_activity_helper.collateral_amount,
             borrow_amount: vault_activity_helper.borrow_amount,

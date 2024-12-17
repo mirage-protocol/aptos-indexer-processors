@@ -15,6 +15,8 @@ use anyhow::{Context, Result};
 use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
 use serde::{Deserialize, Serialize};
+use ahash::AHashMap;
+use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FeeInfo {
@@ -26,10 +28,6 @@ pub struct FeeInfo {
     pub min_maker_fee: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub max_maker_fee: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub liquidation_fee: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub referrer_fee: BigDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -63,6 +61,8 @@ pub struct MarketConfig {
     pub min_order_size: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub max_order_size: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub min_margin_amount: BigDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -98,55 +98,72 @@ pub struct MarketCollection {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "__variant__")]
+pub enum Side {
+    LONG,
+    SHORT,
+    UNKNOWN
+}
+
+impl fmt::Display for Side {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Side::LONG => f.write_str("short"),
+            Side::SHORT => f.write_str("long"),
+            Side::UNKNOWN => f.write_str("unknown")
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Position {
     pub market: ResourceReference,
     #[serde(deserialize_with = "deserialize_from_string")]
-    pub opening_price: BigDecimal,
-    pub is_long: bool,
+    pub last_settled_price: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub last_open_timestamp: BigDecimal,
+    pub side: Side,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub margin_amount: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
+    pub total_strategy_margin_amount: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
     pub position_size: BigDecimal,
     pub last_funding_accumulated: Signed64,
+    pub strategy_refs: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Strategy {
+    pub position: ResourceReference,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub strategy_margin_amount: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub trigger_payment_amount: BigDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TpSl {
-    pub market: ResourceReference,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub take_profit_price: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub stop_loss_price: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub trigger_payment_amount: BigDecimal,
+    pub is_long: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LimitOrder {
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub id: BigDecimal,
-    pub is_increase: bool,
+    pub is_decrease_only: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub position_size: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub margin_amount: BigDecimal,
+    pub is_long: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub trigger_price: BigDecimal,
     pub triggers_above: bool,
     #[serde(deserialize_with = "deserialize_from_string")]
-    pub trigger_payment_amount: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
     pub max_price_slippage: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub expiration: BigDecimal,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct LimitOrders {
-    pub market: ResourceReference,
-    #[serde(deserialize_with = "deserialize_from_string")]
-    pub next_id: BigDecimal,
-    pub orders: Vec<LimitOrder>,
 }
 
 impl MarketCollection {
@@ -205,7 +222,7 @@ impl Position {
     }
 }
 
-impl LimitOrders {
+impl LimitOrder {
     /// Fungible asset is part of an object and we need to get the object first to get owner address
     pub fn from_write_resource(
         write_resource: &WriteResource,
@@ -223,7 +240,7 @@ impl LimitOrders {
             0, // Placeholder, this isn't used anyway
         );
 
-        if let MarketResource::LimitOrders(inner) =
+        if let MarketResource::LimitOrder(inner) =
             MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, mirage_module_address)?
         {
             Ok(Some(inner))
@@ -261,12 +278,43 @@ impl TpSl {
     }
 }
 
+impl Strategy {
+    /// Fungible asset is part of an object and we need to get the object first to get owner address
+    pub fn from_write_resource(
+        write_resource: &WriteResource,
+        txn_version: i64,
+        mirage_module_address: &str
+    ) -> anyhow::Result<Option<Self>> {
+        let type_str = MoveResource::get_outer_type_from_write_resource(write_resource);
+        if !MarketResource::is_resource_supported(type_str.as_str(), mirage_module_address) {
+            return Ok(None);
+        }
+        let resource: MoveResource = MoveResource::from_write_resource(
+            write_resource,
+            0, // Placeholder, this isn't used anyway
+            txn_version,
+            0, // Placeholder, this isn't used anyway
+        );
+
+        if let MarketResource::Strategy(inner) =
+            MarketResource::from_resource(&type_str, resource.data.as_ref().unwrap(), txn_version, mirage_module_address)?
+        {
+            Ok(Some(inner))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+pub type StrategyObjectMapping = AHashMap<String, Strategy>;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum MarketResource {
     MarketCollection(MarketCollection),
     Position(Position),
     TpSl(TpSl),
-    LimitOrders(LimitOrders),
+    LimitOrder(LimitOrder),
+    Strategy(Strategy),
 }
 
 impl MarketResource {
@@ -274,8 +322,9 @@ impl MarketResource {
         [
             format!("{}::market::Market", mirage_module_address),
             format!("{}::market::Position", mirage_module_address),
-            format!("{}::market::TpSl", mirage_module_address),
-            format!("{}::market::LimitOrders", mirage_module_address),
+            format!("{}::tpsl::TpSl", mirage_module_address),
+            format!("{}::limit_order::LimitOrder", mirage_module_address),
+            format!("{}::strategy::Strategy", mirage_module_address),
         ]
         .contains(&data_type.to_string())
     }
@@ -294,11 +343,14 @@ impl MarketResource {
             x if x == format!("{}::market::Position", mirage_module_address) => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::Position(inner)))
             },
-            x if x == format!("{}::market::TpSl", mirage_module_address) => {
+            x if x == format!("{}::market::Strategy", mirage_module_address) => {
+                serde_json::from_value(data.clone()).map(|inner| Some(Self::Strategy(inner)))
+            },
+            x if x == format!("{}::tpsl::TpSl", mirage_module_address) => {
                 serde_json::from_value(data.clone()).map(|inner| Some(Self::TpSl(inner)))
             },
-            x if x == format!("{}::market::LimitOrders", mirage_module_address) => {
-                serde_json::from_value(data.clone()).map(|inner| Some(Self::LimitOrders(inner)))
+            x if x == format!("{}::limit_order::LimitOrder", mirage_module_address) => {
+                serde_json::from_value(data.clone()).map(|inner| Some(Self::LimitOrder(inner)))
             },
             _ => Ok(None),
         }

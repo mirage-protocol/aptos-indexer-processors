@@ -27,6 +27,10 @@ pub struct VaultCollectionConfig {
     pub borrow_fee: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub protocol_liquidation_fee: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub min_collateral_amount: BigDecimal,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub max_collection_debt_amount: BigDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -53,7 +57,6 @@ pub struct VaultCollection {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Vault {
     pub collection: ResourceReference,
-    pub collateral: ResourceReference,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub collateral_amount: BigDecimal,
     pub borrow_part: Base,

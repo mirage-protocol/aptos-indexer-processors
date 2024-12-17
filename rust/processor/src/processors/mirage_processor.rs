@@ -1,4 +1,3 @@
-// Copyright © Mirage Protocol
 
 use super::{ProcessorName, ProcessorTrait, DefaultProcessingResult};
 use crate::{
@@ -8,6 +7,7 @@ use crate::{
             market_datas::{
                 LimitOrderModel, MarketCollectionModel, MarketConfigModel, PositionModel, TpSlModel,
             },
+            market_utils::{Strategy, StrategyObjectMapping}
         },
         mirage_models::{fee_store::FeeStoreModel, mirage_debt_store::MirageDebtStoreModel},
         object_models::v2_object_utils::ObjectWithMetadata,
@@ -25,11 +25,12 @@ use crate::{
     },
     gap_detectors::ProcessingResult,
 };
+
+use aptos_types::account_address::create_resource_address;
 use ahash::AHashMap;
 use anyhow::bail;
 use aptos_protos::transaction::v1::{transaction::TxnData, write_set_change::Change, Transaction};
 use async_trait::async_trait;
-use bigdecimal::ToPrimitive;
 use core::hash::Hash;
 use diesel::{pg::Pg, query_builder::QueryFragment, upsert::excluded, ExpressionMethods};
 use serde::{Deserialize, Serialize};
@@ -453,7 +454,7 @@ fn insert_current_limit_orders_query(
     (
         diesel::insert_into(schema::current_limit_orders::table)
             .values(items_to_insert)
-            .on_conflict((position_id, limit_order_id))
+            .on_conflict(strategy_id)
             .do_update()
             .set((
                 transaction_timestamp.eq(excluded(transaction_timestamp)),
@@ -653,7 +654,7 @@ impl ProcessorTrait for MirageProcessor {
 
 pub async fn parse_mirage_protocol(
     transactions: &[Transaction],
-    mirage_module_address: &str,
+    deployer_address: &str,
 ) -> (
     Vec<MirageDebtStoreModel>,
     Vec<FeeStoreModel>,
@@ -672,10 +673,8 @@ pub async fn parse_mirage_protocol(
     Vec<CurrentLimitOrder>,
     Vec<MarketActivityModel>,
 ) {
-    // Get Metadata for token v2 by object
-    // We want to persist this through the entire batch so that even if a token is burned,
-    // we can still get the object core metadata for it
-    let mut object_owners: ObjectOwnerMapping = AHashMap::new();
+    let mirage_module_address = create_resource_address(deployer_address, "MIRAGE");
+    let market_module_address = create_resource_address(deployer_address, "MIRAGE_MARKET");
 
     let mut mirage_debt_stores = vec![];
     let mut fee_stores = vec![];
@@ -695,7 +694,7 @@ pub async fn parse_mirage_protocol(
     let mut all_trades: Vec<Trade> = vec![];
     let mut all_current_positions: AHashMap<String, CurrentPosition> = AHashMap::new();
     let mut all_current_tpsls: AHashMap<String, CurrentTpsl> = AHashMap::new();
-    let mut all_current_limit_orders: AHashMap<(String, u64), CurrentLimitOrder> = AHashMap::new();
+    let mut all_current_limit_orders: AHashMap<String, CurrentLimitOrder> = AHashMap::new();
     let mut all_market_activities: Vec<MarketActivityModel> = vec![];
 
     // Helper function to update the latest transaction in the HashMap
@@ -707,6 +706,10 @@ pub async fn parse_mirage_protocol(
     }
 
     for txn in transactions {
+        // first pass get object owners and strategy objects
+        let mut object_owners: ObjectOwnerMapping = AHashMap::new();
+        let mut strategy_objects: StrategyObjectMapping = AHashMap::new();
+
         let txn_version = txn.version;
         let txn_data = match txn.txn_data.as_ref() {
             Some(data) => data,
@@ -736,6 +739,12 @@ pub async fn parse_mirage_protocol(
                     {
                         object_owners.insert(standardize_address(&wr.address.to_string()), object.object_core.get_owner_address());
                     }
+                    if let Some(strategy) =
+                        Strategy::from_write_resource(wr, txn_version, mirage_module_address).unwrap()
+                    {
+                        strategy_objects.insert(standardize_address(&wr.address.to_string()), strategy);
+                    }
+
                 }
             }
 
@@ -862,17 +871,18 @@ pub async fn parse_mirage_protocol(
                     {
                         tpsl_datas.push(tpsl_data);
                     }
-                    if let Some(mut limit_orders) = LimitOrderModel::get_from_write_resource(
+                    if let Some(limit_order) = LimitOrderModel::get_from_write_resource(
                         write_resource,
                         txn_version,
                         wsc_index,
                         txn_timestamp,
                         &object_owners,
+                        &strategy_objects,
                         mirage_module_address,
                     )
                     .unwrap()
                     {
-                        all_limit_orders.append(&mut limit_orders);
+                        all_limit_orders.push(limit_order);
                     }
                 }
             }
@@ -889,8 +899,8 @@ pub async fn parse_mirage_protocol(
             ) = MarketActivityModel::from_transaction(txn, &object_owners, mirage_module_address);
 
             update_latest(&mut all_current_positions, current_positions, |pos| pos.position_id.clone());
-            update_latest(&mut all_current_limit_orders, current_limit_orders, |pos| (pos.position_id.clone(), pos.limit_order_id.to_u64().expect("invalid limit order id")));
-            update_latest(&mut all_current_tpsls, current_tpsls, |pos| pos.position_id.clone());
+            update_latest(&mut all_current_limit_orders, current_limit_orders, |pos| pos.strategy_id.clone());
+            update_latest(&mut all_current_tpsls, current_tpsls, |pos| pos.strategy_id.clone());
 
             all_vault_activities.append(&mut vault_activities);
             all_trades.append(&mut trades);
@@ -903,28 +913,28 @@ pub async fn parse_mirage_protocol(
     let mut all_current_tpsls: Vec<CurrentTpsl> = all_current_tpsls.into_values().collect();
 
     // Sort by PK
-    mirage_debt_stores.sort_by(|a, b| a.asset_type.cmp(&b.asset_type));
-    fee_stores.sort_by(|a, b| a.asset_type.cmp(&b.asset_type));
+    mirage_debt_stores.sort_by(|a, b| a.object_address.cmp(&b.object_address));
+    fee_stores.sort_by(|a, b| a.object_address.cmp(&b.object_address));
     vault_configs.sort_by(|a, b| a.collection_id.cmp(&b.collection_id));
     vault_collection_datas.sort_by(|a, b| a.collection_id.cmp(&b.collection_id));
     vault_datas
         .sort_by(|a, b| (&a.vault_id, &a.collection_id).cmp(&(&b.vault_id, &b.collection_id)));
 
     all_limit_orders.sort_by(|a, b| {
-        (&a.position_id, &a.limit_order_id).cmp(&(&b.position_id, &b.limit_order_id))
+        a.strategy_id.cmp(&b.strategy_id)
     });
 
     market_configs.sort_by(|a, b| a.market_id.cmp(&b.market_id));
     market_datas.sort_by(|a, b| a.market_id.cmp(&b.market_id));
     position_datas
         .sort_by(|a, b| (&a.position_id, &a.market_id).cmp(&(&b.position_id, &b.market_id)));
-    tpsl_datas.sort_by(|a, b| (&a.position_id, &a.market_id).cmp(&(&b.position_id, &b.market_id)));
+    tpsl_datas.sort_by(|a, b| a.strategy_id.cmp(&b.strategy_id));
 
     all_trades.sort_by(|a, b| a.position_id.cmp(&b.position_id));
 
     all_current_positions.sort_by(|a, b| a.position_id.cmp(&b.position_id));
     all_current_tpsls.sort_by(|a, b| a.position_id.cmp(&b.position_id));
-    all_current_limit_orders.sort_by(|a, b| (&a.position_id, &a.limit_order_id).cmp(&(&b.position_id, &b.limit_order_id)));
+    all_current_limit_orders.sort_by(|a, b| a.strategy_id.cmp(&b.strategy_id));
 
     (
         mirage_debt_stores,

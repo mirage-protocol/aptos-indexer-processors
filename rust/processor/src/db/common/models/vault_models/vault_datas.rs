@@ -33,6 +33,8 @@ pub struct VaultConfigModel {
     pub liquidation_multiplier: BigDecimal,
     pub borrow_fee: BigDecimal,
     pub protocol_liquidation_fee: BigDecimal,
+    pub min_collateral_amount: BigDecimal,
+    pub max_collection_debt_amount: BigDecimal,
 
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
@@ -132,6 +134,8 @@ impl VaultCollectionModel {
                     liquidation_multiplier: inner.config.liquidation_multiplier.clone(),
                     borrow_fee: inner.config.borrow_fee.clone(),
                     protocol_liquidation_fee: inner.config.protocol_liquidation_fee.clone(),
+                    min_collateral_amount: inner.config.min_collateral_amount.clone(),
+                    max_collection_debt_amount: inner.config.max_collection_debt_amount.clone(),
                     transaction_timestamp: txn_timestamp,
                 },
             )));
