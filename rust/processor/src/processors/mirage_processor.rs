@@ -867,6 +867,7 @@ pub async fn parse_mirage_protocol(
                         wsc_index,
                         txn_timestamp,
                         &object_owners,
+                        &strategy_objects,
                         market_module_address,
                     )
                     .unwrap()

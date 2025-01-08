@@ -492,6 +492,8 @@ diesel::table! {
         position_id -> Varchar,
         #[max_length = 66]
         strategy_id -> Varchar,
+        #[max_length = 66]
+        owner_addr -> Varchar,
         is_closed -> Bool,
         event_index -> Int8,
         transaction_timestamp -> Timestamp,
@@ -523,6 +525,8 @@ diesel::table! {
         market_id -> Varchar,
         #[max_length = 66]
         position_id -> Varchar,
+        #[max_length = 66]
+        owner_addr -> Varchar,
         is_closed -> Bool,
         event_index -> Int8,
         transaction_timestamp -> Timestamp,
@@ -733,6 +737,8 @@ diesel::table! {
         position_id -> Varchar,
         #[max_length = 66]
         strategy_id -> Varchar,
+        #[max_length = 66]
+        owner_addr -> Varchar,
         is_closed -> Bool,
         event_index -> Int8,
         transaction_timestamp -> Timestamp,
@@ -936,9 +942,13 @@ diesel::table! {
         transaction_version -> Int8,
         write_set_change_index -> Int8,
         #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
         position_id -> Varchar,
         #[max_length = 66]
         strategy_id -> Varchar,
+        #[max_length = 66]
+        owner_addr -> Varchar,
         is_decrease_only -> Bool,
         position_size -> Numeric,
         is_long -> Bool,
@@ -1424,9 +1434,13 @@ diesel::table! {
         transaction_version -> Int8,
         write_set_change_index -> Int8,
         #[max_length = 66]
+        market_id -> Varchar,
+        #[max_length = 66]
         position_id -> Varchar,
         #[max_length = 66]
         strategy_id -> Varchar,
+        #[max_length = 66]
+        owner_addr -> Varchar,
         take_profit_price -> Numeric,
         stop_loss_price -> Numeric,
         transaction_timestamp -> Timestamp,

@@ -75,8 +75,10 @@ CREATE TABLE limit_order_datas (
   transaction_version BIGINT NOT NULL,
   write_set_change_index BIGINT NOT NULL,
 
+  market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
   strategy_id VARCHAR(66) NOT NULL,
+  owner_addr VARCHAR(66) NOT NULL,
 
   is_decrease_only BOOLEAN NOT NULL,
   position_size NUMERIC NOT NULL,
@@ -102,6 +104,7 @@ CREATE TABLE current_positions (
 
   market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
+  owner_addr VARCHAR(66) NOT NULL,
 
   is_closed BOOLEAN NOT NULL,
 
@@ -120,6 +123,7 @@ CREATE TABLE current_tpsls (
   market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
   strategy_id VARCHAR(66) NOT NULL,
+  owner_addr VARCHAR(66) NOT NULL,
 
   is_closed BOOLEAN NOT NULL,
 
@@ -139,6 +143,7 @@ CREATE TABLE current_limit_orders (
   market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
   strategy_id VARCHAR(66) NOT NULL,
+  owner_addr VARCHAR(66) NOT NULL,
 
   is_closed BOOLEAN NOT NULL,
 
@@ -182,8 +187,10 @@ CREATE TABLE tpsl_datas (
   transaction_version BIGINT NOT NULL,
   write_set_change_index BIGINT NOT NULL,
 
+  market_id VARCHAR(66) NOT NULL,
   position_id VARCHAR(66) NOT NULL,
   strategy_id VARCHAR(66) NOT NULL,
+  owner_addr VARCHAR(66) NOT NULL,
 
   take_profit_price NUMERIC NOT NULL,
   stop_loss_price NUMERIC NOT NULL,

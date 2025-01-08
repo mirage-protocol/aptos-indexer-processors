@@ -136,6 +136,7 @@ pub struct Position {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Strategy {
+    pub market: ResourceReference,
     pub position: ResourceReference,
     #[serde(deserialize_with = "deserialize_from_string")]
     pub strategy_margin_amount: BigDecimal,

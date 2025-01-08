@@ -185,8 +185,10 @@ pub struct TpSlModel {
     pub transaction_version: i64,
     pub write_set_change_index: i64,
 
+    pub market_id: String,
     pub position_id: String,
     pub strategy_id: String,
+    pub owner_addr: String,
 
     pub take_profit_price: BigDecimal,
     pub stop_loss_price: BigDecimal,
@@ -209,9 +211,9 @@ impl PositionModel {
                 return Ok(Some(Self {
                     transaction_version: txn_version,
                     write_set_change_index,
-                    owner_addr: owner_addr.clone(),
                     market_id: inner.market.get_reference_address(),
                     position_id,
+                    owner_addr: owner_addr.clone(),
                     last_settled_price: inner.last_settled_price.clone(),
                     last_open_timestamp: inner.last_open_timestamp.clone(),
                     side: inner.side.to_string(),
@@ -237,20 +239,27 @@ impl TpSlModel {
         write_set_change_index: i64,
         txn_timestamp: chrono::NaiveDateTime,
         object_owners: &ObjectOwnerMapping,
+        strategy_objects: &StrategyObjectMapping,
         market_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         if let Some(inner) = &TpSl::from_write_resource(write_resource, txn_version, market_module_address)? {
             let strategy_id = standardize_address(&write_resource.address.to_string());
-            if let Some(position_id) = object_owners.get(&strategy_id) {
-                return Ok(Some(Self {
-                    transaction_version: txn_version,
-                    write_set_change_index,
-                    strategy_id: strategy_id.clone(),
-                    position_id: position_id.clone(),
-                    take_profit_price: inner.take_profit_price.clone(),
-                    stop_loss_price: inner.stop_loss_price.clone(),
-                    transaction_timestamp: txn_timestamp,
-                }));
+            if let Some(strategy) = strategy_objects.get(&strategy_id) {
+                if let Some(owner_addr) = object_owners.get(&strategy.position.get_reference_address()) {
+                    return Ok(Some(Self {
+                        transaction_version: txn_version,
+                        write_set_change_index,
+                        market_id: strategy.market.get_reference_address(),
+                        strategy_id: strategy_id.clone(),
+                        position_id: strategy.position.get_reference_address(),
+                        owner_addr: owner_addr.clone(),
+                        take_profit_price: inner.take_profit_price.clone(),
+                        stop_loss_price: inner.stop_loss_price.clone(),
+                        transaction_timestamp: txn_timestamp,
+                    }))
+                } else {
+                    return Ok(None);
+                }
             } else {
                 // ObjectCore should not be missing, returning from entire function early
                 return Ok(None);
@@ -267,8 +276,10 @@ pub struct LimitOrderModel {
     pub transaction_version: i64,
     pub write_set_change_index: i64,
 
+    pub market_id: String,
     pub position_id: String,
     pub strategy_id: String,
+    pub owner_addr: String,
 
     pub is_decrease_only: bool,
     pub position_size: BigDecimal,
@@ -295,22 +306,28 @@ impl LimitOrderModel {
     ) -> anyhow::Result<Option<LimitOrderModel>> {
         if let Some(inner) = &LimitOrder::from_write_resource(write_resource, txn_version, market_module_address)? {
             let strategy_id = standardize_address(&write_resource.address.to_string());
-            if let (Some(position_id), Some(strategy)) = (object_owners.get(&strategy_id), strategy_objects.get(&strategy_id)) {
-                return Ok(Some(LimitOrderModel {
-                        transaction_version: txn_version,
-                        write_set_change_index,
-                        position_id: position_id.clone(), 
-                        strategy_id: strategy_id.clone(),
-                        is_decrease_only: inner.is_decrease_only,
-                        position_size: inner.position_size.clone(),
-                        is_long: inner.is_long,
-                        margin: strategy.strategy_margin_amount.clone(),
-                        trigger_price: inner.trigger_price.clone(),
-                        triggers_above: inner.triggers_above,
-                        max_price_slippage: inner.max_price_slippage.clone(),
-                        expiration: inner.expiration.clone(),
-                        transaction_timestamp: txn_timestamp,
-                }))
+            if let Some(strategy) = strategy_objects.get(&strategy_id) {
+                if let Some(owner_addr) = object_owners.get(&strategy.position.get_reference_address()) {
+                    return Ok(Some(LimitOrderModel {
+                            transaction_version: txn_version,
+                            write_set_change_index,
+                            market_id: strategy.market.get_reference_address(), 
+                            position_id: strategy.position.get_reference_address(), 
+                            strategy_id: strategy_id.clone(),
+                            owner_addr: owner_addr.clone(), 
+                            is_decrease_only: inner.is_decrease_only,
+                            position_size: inner.position_size.clone(),
+                            is_long: inner.is_long,
+                            margin: strategy.strategy_margin_amount.clone(),
+                            trigger_price: inner.trigger_price.clone(),
+                            triggers_above: inner.triggers_above,
+                            max_price_slippage: inner.max_price_slippage.clone(),
+                            expiration: inner.expiration.clone(),
+                            transaction_timestamp: txn_timestamp,
+                    }))
+                } else {
+                    return Ok(None)
+                }
             } else {
                 // ObjectCore and Strategy should not be missing, returning from entire function early
                 return Ok(None);
