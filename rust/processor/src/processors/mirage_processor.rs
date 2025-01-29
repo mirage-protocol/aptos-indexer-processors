@@ -56,6 +56,8 @@ impl MirageProcessor {
         config: MirageProcessorConfig,
         per_table_chunk_sizes: AHashMap<String, usize>,
     ) -> Self {
+        tracing::info!("Initializing MirageProcessor deployer address: {}", config.deployer_address);
+
         Self {
             connection_pool,
             config,
