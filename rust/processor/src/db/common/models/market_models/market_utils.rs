@@ -324,9 +324,9 @@ impl MarketResource {
         [
             format!("{}::market::Market", market_module_address),
             format!("{}::market::Position", market_module_address),
+            format!("{}::market::Strategy", market_module_address),
             format!("{}::tpsl::TpSl", market_module_address),
             format!("{}::limit_order::LimitOrder", market_module_address),
-            format!("{}::strategy::Strategy", market_module_address),
         ]
         .contains(&data_type.to_string())
     }
