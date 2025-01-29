@@ -899,7 +899,7 @@ pub async fn parse_mirage_protocol(
                 current_tpsls,
                 current_limit_orders,
                 mut market_activities,
-            ) = MarketActivityModel::from_transaction(txn, &object_owners, mirage_module_address);
+            ) = MarketActivityModel::from_transaction(txn, &object_owners, market_module_address);
 
             update_latest(&mut all_current_positions, current_positions, |pos| pos.position_id.clone());
             update_latest(&mut all_current_limit_orders, current_limit_orders, |pos| pos.strategy_id.clone());
