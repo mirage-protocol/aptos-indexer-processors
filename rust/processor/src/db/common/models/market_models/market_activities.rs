@@ -104,6 +104,7 @@ pub struct CurrentPosition {
 
     pub market_id: String,
     pub position_id: String,
+    pub owner_addr: String,
 
     pub is_closed: bool,
     pub event_index: i64,
@@ -120,6 +121,7 @@ pub struct CurrentTpsl {
     pub market_id: String,
     pub strategy_id: String,
     pub position_id: String,
+    pub owner_addr: String,
 
     pub is_closed: bool,
     pub event_index: i64,
@@ -136,6 +138,7 @@ pub struct CurrentLimitOrder {
     pub market_id: String,
     pub strategy_id: String,
     pub position_id: String,
+    pub owner_addr: String,
 
     pub is_closed: bool,
     pub event_index: i64,
@@ -289,41 +292,40 @@ impl MarketActivityModel {
                 next_funding_rate: Some(inner.next_funding_rate.to_bigdecimal()),
             },
             MarketEvent::OpenPositionEvent(inner) => {
-                let owner_addr = if let Some(owner_addr) =
-                    object_owners.get(&inner.position.get_reference_address())
-                {
-                    trade = Some(Trade {
-                        transaction_version: txn_version,
-                        market_id: inner.market.get_reference_address(),
-                        position_id: inner.position.get_reference_address(),
-                        owner_addr: owner_addr.clone(),
-                        is_long: inner.is_long,
-                        position_size: inner.position_size.clone(),
-                        price: inner.opening_price.clone(),
-                        fee: inner.fee.clone(),
-                        pnl: BigDecimal::zero(),
-                        event_type: String::from("OpenPositionEvent"),
-                        transaction_timestamp: txn_timestamp,
-                    });
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the position");
+
+                trade = Some(Trade {
+                    transaction_version: txn_version,
+                    market_id: inner.market.get_reference_address(),
+                    position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
+                    is_long: inner.is_long,
+                    position_size: inner.position_size.clone(),
+                    price: inner.opening_price.clone(),
+                    fee: inner.fee.clone(),
+                    pnl: BigDecimal::zero(),
+                    event_type: String::from("OpenPositionEvent"),
+                    transaction_timestamp: txn_timestamp,
+                });
 
                 current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: false,
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
+
                 MarketActivityHelper {
                     event_type: String::from("OpenPositionEvent"),
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: None,
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: Some(inner.opening_price.clone()),
                     is_long: Some(inner.is_long),
                     margin_amount: Some(inner.margin_amount.clone()),
@@ -342,41 +344,39 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::ClosePositionEvent(inner) => {
-                let owner_addr = if let Some(owner_addr) =
-                    object_owners.get(&inner.position.get_reference_address())
-                {
-                    trade = Some(Trade {
-                        transaction_version: txn_version,
-                        market_id: inner.market.get_reference_address(),
-                        position_id: inner.position.get_reference_address(),
-                        owner_addr: owner_addr.clone(),
-                        is_long: inner.is_long,
-                        position_size: inner.position_size.clone(),
-                        price: inner.closing_price.clone(),
-                        fee: inner.fee.clone(),
-                        pnl: inner.winnings.to_bigdecimal(),
-                        event_type: String::from("ClosePositionEvent"),
-                        transaction_timestamp: txn_timestamp,
-                    });
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the position");
 
+                trade = Some(Trade {
+                    transaction_version: txn_version,
+                    market_id: inner.market.get_reference_address(),
+                    position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
+                    is_long: inner.is_long,
+                    position_size: inner.position_size.clone(),
+                    price: inner.closing_price.clone(),
+                    fee: inner.fee.clone(),
+                    pnl: inner.winnings.to_bigdecimal(),
+                    event_type: String::from("ClosePositionEvent"),
+                    transaction_timestamp: txn_timestamp,
+                });
                 current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: true,
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
+
                 MarketActivityHelper {
                     event_type: String::from("ClosePositionEvent"),
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: None,
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: Some(inner.closing_price.clone()),
                     is_long: Some(inner.is_long),
                     margin_amount: None,
@@ -395,12 +395,15 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::IncreaseMarginEvent(inner) => {
-                let owner_addr = object_owners.get(&inner.position.get_reference_address());
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the position");
 
                 current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: false,
                     event_index,
                     transaction_timestamp: txn_timestamp,
@@ -410,7 +413,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: None,
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: None,
                     margin_amount: Some(inner.margin_amount.clone()),
@@ -429,12 +432,15 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::DecreaseMarginEvent(inner) => {
-                let owner_addr = object_owners.get(&inner.position.get_reference_address());
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the position");
 
                 current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: true,
                     event_index,
                     transaction_timestamp: txn_timestamp,
@@ -444,7 +450,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: None,
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: None,
                     margin_amount: Some(inner.margin_amount.clone()),
@@ -463,41 +469,39 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::IncreasePositionSizeEvent(inner) => {
-                let owner_addr = if let Some(owner_addr) =
-                    object_owners.get(&inner.position.get_reference_address())
-                {
-                    trade = Some(Trade {
-                        transaction_version: txn_version,
-                        market_id: inner.market.get_reference_address(),
-                        position_id: inner.position.get_reference_address(),
-                        owner_addr: owner_addr.clone(),
-                        is_long: inner.is_long,
-                        position_size: inner.amount.clone(),
-                        price: inner.new_opening_price.clone(),
-                        fee: inner.fee.clone(),
-                        pnl: BigDecimal::zero(),
-                        event_type: String::from("IncreasePositionSizeEvent"),
-                        transaction_timestamp: txn_timestamp,
-                    });
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the position");
 
+                trade = Some(Trade {
+                    transaction_version: txn_version,
+                    market_id: inner.market.get_reference_address(),
+                    position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
+                    is_long: inner.is_long,
+                    position_size: inner.amount.clone(),
+                    price: inner.new_opening_price.clone(),
+                    fee: inner.fee.clone(),
+                    pnl: BigDecimal::zero(),
+                    event_type: String::from("IncreasePositionSizeEvent"),
+                    transaction_timestamp: txn_timestamp,
+                });
                 current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: false,
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
+
                 MarketActivityHelper {
                     event_type: String::from("IncreasePositionSizeEvent"),
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: None,
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: Some(inner.new_opening_price.clone()),
                     is_long: None,
                     margin_amount: None,
@@ -516,31 +520,29 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::DecreasePositionSizeEvent(inner) => {
-                let owner_addr = if let Some(owner_addr) =
-                    object_owners.get(&inner.position.get_reference_address())
-                {
-                    trade = Some(Trade {
-                        transaction_version: txn_version,
-                        market_id: inner.market.get_reference_address(),
-                        position_id: inner.position.get_reference_address(),
-                        owner_addr: owner_addr.clone(),
-                        is_long: inner.is_long,
-                        position_size: inner.amount.clone(),
-                        price: inner.closing_price.clone(),
-                        fee: inner.fee.clone(),
-                        pnl: BigDecimal::zero(),
-                        event_type: String::from("DecreasePositionSizeEvent"),
-                        transaction_timestamp: txn_timestamp,
-                    });
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the position");
+
+                trade = Some(Trade {
+                    transaction_version: txn_version,
+                    market_id: inner.market.get_reference_address(),
+                    position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
+                    is_long: inner.is_long,
+                    position_size: inner.amount.clone(),
+                    price: inner.closing_price.clone(),
+                    fee: inner.fee.clone(),
+                    pnl: BigDecimal::zero(),
+                    event_type: String::from("DecreasePositionSizeEvent"),
+                    transaction_timestamp: txn_timestamp,
+                });
 
                 current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: false,
                     event_index,
                     transaction_timestamp: txn_timestamp,
@@ -550,7 +552,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: None,
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: Some(inner.closing_price.clone()),
                     is_long: None,
                     margin_amount: None,
@@ -569,41 +571,39 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::LiquidatePositionEvent(inner) => {
-                let owner_addr = if let Some(owner_addr) =
-                    object_owners.get(&inner.position.get_reference_address())
-                {
-                    trade = Some(Trade {
-                        transaction_version: txn_version,
-                        market_id: inner.market.get_reference_address(),
-                        position_id: inner.position.get_reference_address(),
-                        owner_addr: owner_addr.clone(),
-                        is_long: inner.is_long,
-                        position_size: inner.position_size.clone(),
-                        price: inner.closing_price.clone(),
-                        fee: inner.liquidation_fee.clone() + inner.protocol_fee.clone() + inner.closing_fee.clone(),
-                        pnl: inner.winnings.to_bigdecimal(),
-                        event_type: String::from("LiquidatePositionEvent"),
-                        transaction_timestamp: txn_timestamp,
-                    });
-                    Some(owner_addr)
-                } else {
-                    None
-                };
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the position");
 
+                trade = Some(Trade {
+                    transaction_version: txn_version,
+                    market_id: inner.market.get_reference_address(),
+                    position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
+                    is_long: inner.is_long,
+                    position_size: inner.position_size.clone(),
+                    price: inner.closing_price.clone(),
+                    fee: inner.liquidation_fee.clone() + inner.protocol_fee.clone() + inner.closing_fee.clone(),
+                    pnl: inner.winnings.to_bigdecimal(),
+                    event_type: String::from("LiquidatePositionEvent"),
+                    transaction_timestamp: txn_timestamp,
+                });
                 current_position = Some(CurrentPosition {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: true,
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
+
                 MarketActivityHelper {
                     event_type: String::from("LiquidatePositionEvent"),
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: None,
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: Some(inner.closing_price.clone()),
                     is_long: Some(inner.is_long),
                     margin_amount: Some(inner.remaining_maintenance_margin.clone()),
@@ -622,13 +622,16 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::PlaceTpslEvent(inner) => {
-                let owner_addr = object_owners.get(&inner.position.get_reference_address());
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the tpsl");
 
                 current_tpsl = Some(CurrentTpsl {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     strategy_id: inner.tpsl.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: false,
                     event_index,
                     transaction_timestamp: txn_timestamp,
@@ -638,7 +641,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: Some(inner.tpsl.get_reference_address()),
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: Some(inner.is_long),
                     margin_amount: None,
@@ -657,23 +660,27 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::UpdateTpslEvent(inner) => {
-                let owner_addr = object_owners.get(&inner.position.get_reference_address());
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the tpsl");
 
                 current_tpsl = Some(CurrentTpsl {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     strategy_id: inner.tpsl.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: false,
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
+
                 MarketActivityHelper {
                     event_type: String::from("UpdateTpslEvent"),
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: Some(inner.tpsl.get_reference_address()),
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: Some(inner.is_long),
                     margin_amount: None,
@@ -692,13 +699,16 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::CancelTpslEvent(inner) => {
-                // position is in the write_set
-                let owner_addr = object_owners.get(&inner.position.get_reference_address());
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the tpsl");
+
                 current_tpsl = Some(CurrentTpsl {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     strategy_id: inner.tpsl.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: true,
                     event_index,
                     transaction_timestamp: txn_timestamp,
@@ -708,7 +718,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: Some(inner.tpsl.get_reference_address()),
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -727,23 +737,26 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::TriggerTpslEvent(inner) => {
-                let owner_addr = object_owners.get(&inner.position.get_reference_address());
-
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the tpsl");
                 current_tpsl = Some(CurrentTpsl {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     strategy_id: inner.tpsl.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: true,
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
+
                 MarketActivityHelper {
                     event_type: String::from("TriggerTpslEvent"),
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: Some(inner.tpsl.get_reference_address()),
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -762,23 +775,27 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::PlaceLimitOrderEvent(inner) => {
-                let owner_addr = object_owners.get(&inner.position.get_reference_address());
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the limit order");
 
                 current_limit_order = Some(CurrentLimitOrder {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     strategy_id: inner.limit_order.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: false,
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
+
                 MarketActivityHelper {
                     event_type: String::from("PlaceLimitOrderEvent"),
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: Some(inner.limit_order.get_reference_address()),
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: None,
                     margin_amount: Some(inner.margin_amount.clone()),
@@ -797,23 +814,27 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::UpdateLimitOrderEvent(inner) => {
-                let owner_addr = object_owners.get(&inner.position.get_reference_address());
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the limit order");
 
                 current_limit_order = Some(CurrentLimitOrder {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     strategy_id: inner.limit_order.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: false,
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
+
                 MarketActivityHelper {
                     event_type: String::from("UpdateLimitOrderEvent"),
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: Some(inner.limit_order.get_reference_address()),
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: Some(inner.is_long),
                     margin_amount: Some(inner.margin_amount.clone()),
@@ -832,13 +853,16 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::CancelLimitOrderEvent(inner) => {
-                let owner_addr = object_owners.get(&inner.position.get_reference_address());
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the limit order");
 
                 current_limit_order = Some(CurrentLimitOrder {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     strategy_id: inner.limit_order.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: true,
                     event_index,
                     transaction_timestamp: txn_timestamp,
@@ -848,7 +872,7 @@ impl MarketActivityModel {
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: Some(inner.limit_order.get_reference_address()),
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
@@ -867,23 +891,26 @@ impl MarketActivityModel {
                 }
             },
             MarketEvent::TriggerLimitOrderEvent(inner) => {
-                let owner_addr = object_owners.get(&inner.position.get_reference_address());
-
+                let owner_addr = object_owners
+                    .get(&inner.position.get_reference_address())
+                    .expect("Object owner not found for the limit order");
                 current_limit_order = Some(CurrentLimitOrder {
                     last_transaction_version: txn_version,
                     market_id: inner.market.get_reference_address(),
                     position_id: inner.position.get_reference_address(),
                     strategy_id: inner.limit_order.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
                     is_closed: true,
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
+
                 MarketActivityHelper {
                     event_type: String::from("TriggerLimitOrderEvent"),
                     market_id: inner.market.get_reference_address(),
                     position_id: Some(inner.position.get_reference_address()),
                     strategy_id: Some(inner.limit_order.get_reference_address()),
-                    owner_addr: owner_addr.cloned(),
+                    owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: None,
                     margin_amount: None,
