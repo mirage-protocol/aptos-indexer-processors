@@ -718,7 +718,11 @@ pub async fn parse_mirage_protocol(
             let transaction_info = txn.info.as_ref().expect("Transaction info doesn't exist!");
 
             // First pass to get all the object owners from the write_set
-            for wsc in transaction_info.changes.iter() {
+            for wsc in transaction_info
+                .changes
+                .iter()
+                .filter(|wsc| wsc.change.is_some())
+            {
                 if let Change::WriteResource(wr) = wsc.change.as_ref().unwrap() {
                     if let Some(object) = ObjectWithMetadata::from_write_resource(wr, txn_version).unwrap() {
                         object_owners.insert(
@@ -750,6 +754,10 @@ pub async fn parse_mirage_protocol(
 
             // Loop to handle all the other changes
             for (index, wsc) in transaction_info.changes.iter().enumerate() {
+                if wsc.change.is_none() {
+                    continue;
+                }
+
                 if let Change::WriteResource(write_resource) = wsc.change.as_ref().unwrap() {
                     let wsc_index = index as i64;
                     if let Some(mirage_debt_store) = MirageDebtStoreModel::from_write_resource(
