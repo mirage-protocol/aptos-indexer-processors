@@ -395,6 +395,7 @@ fn insert_current_positions_query(
                 is_closed.eq(excluded(is_closed)),
                 event_index.eq(excluded(event_index)),
                 inserted_at.eq(excluded(inserted_at)),
+                owner_addr.eq(excluded(owner_addr)),
             )),
         Some(
             "WHERE current_positions.last_transaction_version < excluded.last_transaction_version 
@@ -414,7 +415,7 @@ fn insert_current_tpsls_query(
     (
         diesel::insert_into(schema::current_tpsls::table)
             .values(items_to_insert)
-            .on_conflict(position_id)
+            .on_conflict(strategy_id)
             .do_update()
             .set((
                 transaction_timestamp.eq(excluded(transaction_timestamp)),
@@ -422,6 +423,7 @@ fn insert_current_tpsls_query(
                 is_closed.eq(excluded(is_closed)),
                 event_index.eq(excluded(event_index)),
                 inserted_at.eq(excluded(inserted_at)),
+                owner_addr.eq(excluded(owner_addr)),
             )),
         Some(
             "WHERE current_tpsls.last_transaction_version < excluded.last_transaction_version 
@@ -449,6 +451,7 @@ fn insert_current_limit_orders_query(
                 is_closed.eq(excluded(is_closed)),
                 event_index.eq(excluded(event_index)),
                 inserted_at.eq(excluded(inserted_at)),
+                owner_addr.eq(excluded(owner_addr)),
             )),
         Some("WHERE current_limit_orders.last_transaction_version < excluded.last_transaction_version 
             OR (current_limit_orders.last_transaction_version = excluded.last_transaction_version 
