@@ -205,6 +205,24 @@ pub struct UpdateLimitOrderEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IncreaseLimitOrderMarginEvent {
+    pub market: ResourceReference,
+    pub position: ResourceReference,
+    pub limit_order: ResourceReference,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub margin_amount: BigDecimal,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DecreaseLimitOrderMarginEvent {
+    pub market: ResourceReference,
+    pub position: ResourceReference,
+    pub limit_order: ResourceReference,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub margin_amount: BigDecimal,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SettlePnlEvent {
     pub market: ResourceReference,
     pub position: ResourceReference,
@@ -242,6 +260,8 @@ pub enum MarketEvent {
     TriggerTpslEvent(TriggerTpslEvent),
     PlaceLimitOrderEvent(PlaceLimitOrderEvent),
     UpdateLimitOrderEvent(UpdateLimitOrderEvent),
+    IncreaseLimitOrderMarginEvent(IncreaseLimitOrderMarginEvent),
+    DecreaseLimitOrderMarginEvent(DecreaseLimitOrderMarginEvent),
     CancelLimitOrderEvent(CancelLimitOrderEvent),
     TriggerLimitOrderEvent(TriggerLimitOrderEvent),
     SettlePnlEvent(SettlePnlEvent),
@@ -276,6 +296,14 @@ impl MarketEvent {
             ),
             format!(
                 "{}::limit_order::UpdateLimitOrderEvent",
+                market_module_address
+            ),
+             format!(
+                "{}::limit_order::IncreaseLimitOrderMarginEvent",
+                market_module_address
+            ),
+           format!(
+                "{}::limit_order::DecreaseLimitOrderMarginEvent",
                 market_module_address
             ),
             format!(
@@ -378,6 +406,24 @@ impl MarketEvent {
             {
                 serde_json::from_str(data)
                     .map(|inner| Some(MarketEvent::UpdateLimitOrderEvent(inner)))
+            },
+            x if x
+                == format!(
+                    "{}::limit_order::IncreaseLimitOrderMarginEvent",
+                    market_module_address
+                ) =>
+            {
+                serde_json::from_str(data)
+                    .map(|inner| Some(MarketEvent::IncreaseLimitOrderMarginEvent(inner)))
+            },
+            x if x
+                == format!(
+                    "{}::limit_order::DecreaseLimitOrderMarginEvent",
+                    market_module_address
+                ) =>
+            {
+                serde_json::from_str(data)
+                    .map(|inner| Some(MarketEvent::DecreaseLimitOrderMarginEvent(inner)))
             },
             x if x
                 == format!(
