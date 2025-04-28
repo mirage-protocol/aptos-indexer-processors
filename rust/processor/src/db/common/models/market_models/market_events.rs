@@ -196,8 +196,6 @@ pub struct UpdateLimitOrderEvent {
     #[serde(deserialize_with = "deserialize_from_string")]
     pub position_size: BigDecimal,
     #[serde(deserialize_with = "deserialize_from_string")]
-    pub margin_amount: BigDecimal,
-    #[serde(deserialize_with = "deserialize_from_string")]
     pub trigger_price: BigDecimal,
     pub triggers_above: bool,
     #[serde(deserialize_with = "deserialize_from_string")]

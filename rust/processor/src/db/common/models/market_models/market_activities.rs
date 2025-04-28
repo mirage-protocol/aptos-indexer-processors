@@ -961,7 +961,7 @@ impl MarketActivityModel {
                     owner_addr: Some(owner_addr.to_string()),
                     perp_price: None,
                     is_long: Some(inner.is_long),
-                    margin_amount: Some(inner.margin_amount.clone()),
+                    margin_amount: None,
                     position_size: Some(inner.position_size.clone()),
                     fee: None,
                     protocol_fee: None,
