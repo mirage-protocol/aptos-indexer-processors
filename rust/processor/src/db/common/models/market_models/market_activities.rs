@@ -1017,6 +1017,89 @@ impl MarketActivityModel {
                     next_funding_rate: None,
                 }
             },
+            MarketEvent::IncreaseLimitOrderMarginEvent(inner) => {
+                let owner_addr = Self::get_owner_address(
+                    object_owners,
+                    &inner.position.get_reference_address(),
+                    txn_version,
+                    sender_address,
+                );
+
+                current_limit_order = Some(CurrentLimitOrder {
+                    last_transaction_version: txn_version,
+                    market_id: inner.market.get_reference_address(),
+                    position_id: inner.position.get_reference_address(),
+                    strategy_id: inner.limit_order.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
+                    is_closed: false,
+                    event_index,
+                    transaction_timestamp: txn_timestamp,
+                });
+
+                MarketActivityHelper {
+                    event_type: String::from("IncreaseLimitOrderMarginEvent"),
+                    market_id: inner.market.get_reference_address(),
+                    position_id: Some(inner.position.get_reference_address()),
+                    strategy_id: Some(inner.limit_order.get_reference_address()),
+                    owner_addr: Some(owner_addr.to_string()),
+                    perp_price: None,
+                    is_long: None,
+                    margin_amount: Some(inner.margin_amount.clone()),
+                    position_size: None,
+                    fee: None,
+                    protocol_fee: None,
+                    pnl: None,
+                    take_profit_price: None,
+                    stop_loss_price: None,
+                    trigger_price: None,
+                    max_price_slippage: None,
+                    is_decrease_only: None,
+                    triggers_above: None,
+                    expiration: None,
+                    next_funding_rate: None,
+                }
+            },
+            MarketEvent::DecreaseLimitOrderMarginEvent(inner) => {
+                let owner_addr = Self::get_owner_address(
+                    object_owners,
+                    &inner.position.get_reference_address(),
+                    txn_version,
+                    sender_address,
+                );
+
+                current_limit_order = Some(CurrentLimitOrder {
+                    last_transaction_version: txn_version,
+                    market_id: inner.market.get_reference_address(),
+                    position_id: inner.position.get_reference_address(),
+                    strategy_id: inner.limit_order.get_reference_address(),
+                    owner_addr: owner_addr.clone(),
+                    is_closed: true,
+                    event_index,
+                    transaction_timestamp: txn_timestamp,
+                });
+                MarketActivityHelper {
+                    event_type: String::from("DecreaseLimitOrderMarginEvent"),
+                    market_id: inner.market.get_reference_address(),
+                    position_id: Some(inner.position.get_reference_address()),
+                    strategy_id: Some(inner.limit_order.get_reference_address()),
+                    owner_addr: Some(owner_addr.to_string()),
+                    perp_price: None,
+                    is_long: None,
+                    margin_amount: Some(inner.margin_amount.clone()),
+                    position_size: None,
+                    fee: None,
+                    protocol_fee: None,
+                    pnl: None,
+                    take_profit_price: None,
+                    stop_loss_price: None,
+                    trigger_price: None,
+                    max_price_slippage: None,
+                    is_decrease_only: None,
+                    triggers_above: None,
+                    expiration: None,
+                    next_funding_rate: None,
+                }
+            },
             MarketEvent::TriggerLimitOrderEvent(inner) => {
                 let owner_addr = Self::get_owner_address(
                     object_owners,
@@ -1034,7 +1117,6 @@ impl MarketActivityModel {
                     event_index,
                     transaction_timestamp: txn_timestamp,
                 });
-
                 MarketActivityHelper {
                     event_type: String::from("TriggerLimitOrderEvent"),
                     market_id: inner.market.get_reference_address(),
