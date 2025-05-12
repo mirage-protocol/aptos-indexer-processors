@@ -545,6 +545,7 @@ pub struct DerivedStringSnapshot {
 
 /// Maps object to owner
 pub type ObjectOwnerMapping = AHashMap<String, String>;
+pub type PropertyMapMapping = AHashMap<String, PropertyMap>;
 
 #[cfg(test)]
 mod tests {

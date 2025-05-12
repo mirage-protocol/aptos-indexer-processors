@@ -1,5 +1,7 @@
 -- Your SQL goes here
 
+-- CREATE EXTENSION IF NOT EXISTS pg_cron;  -- Commenting out as extension is not available
+
 -- market configs
 CREATE TABLE market_configs (
   transaction_version BIGINT NOT NULL,
@@ -268,24 +270,62 @@ CREATE TABLE market_activities (
 );
 CREATE INDEX market_activities_mid on market_activities (market_id, event_type, event_sequence_number);
 
-CREATE VIEW owner_trades AS 
-SELECT 
-    owner_addr, 
-    total_pnl, 
-    total_fee, 
-    trade_count, 
-    profit, 
-    volume, 
-    RANK() OVER (ORDER BY profit DESC) AS rank
-FROM (
-    SELECT 
-        owner_addr, 
-        SUM(pnl) AS total_pnl, 
-        SUM(fee) AS total_fee, 
-        COUNT(*) AS trade_count, 
-        SUM(pnl - fee) AS profit, 
-        SUM((position_size * price) / (100000000)::numeric) AS volume 
-    FROM trade_datas
-    GROUP BY owner_addr 
-) AS subquery;
--- CREATE INDEX owner_trades_oa ON owner_trades(owner_addr);
+-- CREATE OR REPLACE VIEW owner_trades AS
+-- SELECT
+--   owner_addr,
+--   total_pnl,
+--   total_fee,
+--   trade_count,
+--   profit,
+--   volume,
+--   rank
+-- FROM
+--   owner_trades_materialized;
+
+
+-- sql for the materialised view:
+-- Drop existing materialized view
+DROP MATERIALIZED VIEW IF EXISTS owner_trades_materialized;
+
+-- Create new materialized view with ROW_NUMBER
+CREATE MATERIALIZED VIEW owner_trades_materialized AS
+SELECT
+  subquery.owner_addr,
+  subquery.total_pnl,
+  subquery.total_fee,
+  subquery.trade_count,
+  subquery.profit,
+  subquery.volume,
+  row_number() OVER (
+    ORDER BY
+      subquery.profit DESC,
+      subquery.owner_addr ASC -- Tiebreaker for uniqueness
+  ) AS rank
+FROM
+  (
+    SELECT
+      trade_datas.owner_addr,
+      sum(trade_datas.pnl) AS total_pnl,
+      sum(trade_datas.fee) AS total_fee,
+      count(*) AS trade_count,
+      sum((trade_datas.pnl - trade_datas.fee)) AS profit,
+      sum(
+        (
+          (trade_datas.position_size * trade_datas.price) / (100000000) :: numeric
+        )
+      ) AS volume
+    FROM
+      public.trade_datas
+    GROUP BY
+      trade_datas.owner_addr
+  ) subquery;
+
+-- Recreate indexes
+CREATE UNIQUE INDEX IF NOT EXISTS owner_trades_mat_owner_addr_idx
+ON owner_trades_materialized (owner_addr);
+
+CREATE INDEX IF NOT EXISTS owner_trades_mat_profit_owner_addr_idx
+ON owner_trades_materialized (profit DESC, owner_addr ASC);
+
+CREATE INDEX IF NOT EXISTS owner_trades_mat_rank_idx
+ON owner_trades_materialized (rank);

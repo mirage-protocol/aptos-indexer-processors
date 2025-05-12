@@ -6,15 +6,14 @@
 #![allow(clippy::unused_unit)]
 
 use crate::{
-    db::common::models::mirage_models::mirage_utils::MirageDebtStore,
-    schema::mirage_debt_store_datas,
-    utils::util::{bigdecimal_to_u64, parse_timestamp_secs, standardize_address},
+    db::common::models::mirage_models::mirage_utils::MirageDebtStore, processors::mirage_processor::PropertyMapMapping, schema::mirage_debt_store_datas, utils::util::{bigdecimal_to_u64, parse_timestamp_secs, standardize_address}
 };
 use aptos_protos::transaction::v1::WriteResource;
 use bigdecimal::BigDecimal;
 use diesel::prelude::*;
 use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
 #[diesel(primary_key(transaction_version, write_set_change_index))]
@@ -35,6 +34,8 @@ pub struct MirageDebtStoreModel {
     pub mint_window_start: chrono::NaiveDateTime,
     pub mint_window_duration_sec: BigDecimal,
     pub mint_max_outflow: BigDecimal,
+    pub net_fees: BigDecimal,
+    pub net_burn: BigDecimal,
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
 
@@ -45,6 +46,7 @@ impl MirageDebtStoreModel {
         write_set_change_index: i64,
         txn_version: i64,
         txn_timestamp: chrono::NaiveDateTime,
+        property_maps: &PropertyMapMapping,
         mirage_module_address: &str,
     ) -> anyhow::Result<Option<Self>> {
         if let Some(inner) = &MirageDebtStore::from_write_resource(
@@ -52,7 +54,26 @@ impl MirageDebtStoreModel {
             txn_version,
             mirage_module_address,
         )? {
-            // the new coin type
+            let property_map = property_maps.get(&write_resource.address.to_string());
+            if property_map.is_none() {
+                return Err(anyhow::anyhow!("Property map not found for debt store"));
+            }
+            let property_map = property_map.unwrap();
+            
+            // Parse BigDecimal values, returning error if parsing fails
+            let net_fees = BigDecimal::from_str(property_map.inner.get("net_fees")
+                .ok_or_else(|| anyhow::anyhow!("net_fees not found in property map"))?
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("net_fees is not a string"))?
+            ).map_err(|e| anyhow::anyhow!("Failed to parse net_fees: {}", e))?;
+            
+            let net_burn = BigDecimal::from_str(property_map.inner.get("net_burn")
+                .ok_or_else(|| anyhow::anyhow!("net_burn not found in property map"))?
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("net_burn is not a string"))?
+            ).map_err(|e| anyhow::anyhow!("Failed to parse net_burn: {}", e))?;
+
+            // the coin type is the object address
             let object_address = standardize_address(&write_resource.address.to_string());
             return Ok(Some(Self {
                 transaction_version: txn_version,
@@ -84,6 +105,8 @@ impl MirageDebtStoreModel {
                     .window_duration_sec
                     .clone(),
                 mint_max_outflow: inner.mint_rate_limiter.config.max_outflow.clone(),
+                net_fees,
+                net_burn,
                 transaction_timestamp: txn_timestamp,
             }));
         }

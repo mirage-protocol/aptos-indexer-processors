@@ -12,7 +12,7 @@ use crate::{
         },
         mirage_models::mirage_debt_store::MirageDebtStoreModel,
         object_models::v2_object_utils::ObjectWithMetadata,
-        token_v2_models::v2_token_utils::V2TokenEvent,
+        token_v2_models::v2_token_utils::{PropertyMapModel, V2TokenEvent},
         vault_models::{
             vault_activities::VaultActivityModel,
             vault_datas::{VaultCollectionModel, VaultConfigModel, VaultModel},
@@ -39,6 +39,8 @@ use serde::{Deserialize, Serialize};
 use std::{env, fmt::Debug};
 
 use crate::db::postgres::models::resources::FromWriteResource;
+
+pub type PropertyMapMapping = AHashMap<String, PropertyMapModel>;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -726,6 +728,7 @@ pub async fn parse_mirage_protocol(
         // first pass get object owners and strategy objects
         let mut object_owners: ObjectOwnerMapping = AHashMap::new();
         let mut strategy_objects: StrategyObjectMapping = AHashMap::new();
+        let mut property_maps: PropertyMapMapping = AHashMap::new();
 
         let txn_version = txn.version;
         let txn_data = match txn.txn_data.as_ref() {
@@ -756,6 +759,13 @@ pub async fn parse_mirage_protocol(
                             object.object_core.get_owner_address(),
                         );
                     }
+                    if let Some(property_map) = PropertyMapModel::from_write_resource(wr).unwrap() {
+                        property_maps.insert(
+                            standardize_address(&wr.address.to_string()),
+                            property_map,
+                        );
+                    }
+
                     if let Some(strategy) =
                         Strategy::from_write_resource(wr, txn_version, market_module_address)
                             .unwrap()
@@ -781,12 +791,13 @@ pub async fn parse_mirage_protocol(
             // Loop to handle all the other changes
             for (index, wsc) in transaction_info.changes.iter().enumerate() {
                 if let Change::WriteResource(write_resource) = wsc.change.as_ref().unwrap() {
-                    let wsc_index = index as i64;
+                    let wsc_index: i64 = index as i64;
                     if let Some(mirage_debt_store) = MirageDebtStoreModel::from_write_resource(
                         write_resource,
                         wsc_index,
                         txn_version,
                         txn_timestamp,
+                        &property_maps,
                         mirage_module_address,
                     )
                     .unwrap_or_else(|e| {

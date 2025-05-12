@@ -1094,6 +1094,8 @@ diesel::table! {
         mint_window_start -> Timestamp,
         mint_window_duration_sec -> Numeric,
         mint_max_outflow -> Numeric,
+        net_fees -> Numeric,
+        net_burn -> Numeric,
         transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
     }

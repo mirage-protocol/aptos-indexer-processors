@@ -19,6 +19,9 @@ CREATE TABLE mirage_debt_store_datas (
   mint_window_duration_sec NUMERIC NOT NULL,
   mint_max_outflow NUMERIC NOT NULL,
 
+  net_fees NUMERIC NOT NULL,
+  net_burn NUMERIC NOT NULL,
+
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
   -- Constraints
