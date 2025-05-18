@@ -1,6 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;
 -- Your SQL goes here
-
--- CREATE EXTENSION IF NOT EXISTS pg_cron;  -- Commenting out as extension is not available
 
 -- market configs
 CREATE TABLE market_configs (
@@ -71,6 +70,7 @@ CREATE TABLE market_datas (
   PRIMARY KEY (transaction_version, write_set_change_index)
 );
 CREATE INDEX market_datas_mid on market_datas (market_id);
+CREATE INDEX market_datas_ts on market_datas (transaction_timestamp);
 
 -- limit order infos
 CREATE TABLE limit_order_datas (
@@ -99,6 +99,7 @@ CREATE TABLE limit_order_datas (
 CREATE INDEX limit_order_datas_sid on limit_order_datas (strategy_id);
 CREATE INDEX limit_order_datas_pid on limit_order_datas (position_id);
 CREATE INDEX limit_order_datas_psid on limit_order_datas (position_id, strategy_id);
+CREATE INDEX limit_order_datas_ts on limit_order_datas (transaction_timestamp);
 
 -- current positions
 CREATE TABLE current_positions (
@@ -183,7 +184,7 @@ CREATE TABLE position_datas (
 CREATE INDEX position_datas_oa on position_datas (owner_addr);
 CREATE INDEX position_datas_mid on position_datas (market_id);
 CREATE INDEX position_datas_oa_mid on position_datas (owner_addr, market_id);
-
+CREATE INDEX position_datas_ts on position_datas (transaction_timestamp);
 -- tpsl
 CREATE TABLE tpsl_datas (
   transaction_version BIGINT NOT NULL,
@@ -205,6 +206,7 @@ CREATE TABLE tpsl_datas (
 CREATE INDEX tpsl_datas_pid on tpsl_datas (position_id);
 CREATE INDEX tpsl_datas_sid on tpsl_datas (strategy_id);
 CREATE INDEX tpsl_datas_psid on tpsl_datas (strategy_id, position_id);
+CREATE INDEX tpsl_datas_ts on tpsl_datas (transaction_timestamp);
 
 -- trades
 CREATE TABLE trade_datas (
@@ -221,14 +223,19 @@ CREATE TABLE trade_datas (
   pnl NUMERIC NOT NULL,
   event_type VARCHAR NOT NULL,
 
+  event_index BIGINT NOT NULL,
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
   -- Constraints
-  PRIMARY KEY (transaction_version, position_id)
+  PRIMARY KEY (transaction_version, event_index, transaction_timestamp)
 );
 CREATE INDEX trade_datas_oa on trade_datas (owner_addr);
 CREATE INDEX trade_mid on trade_datas (market_id);
 CREATE INDEX trades_oa_mid on trade_datas (owner_addr, market_id);
+CREATE INDEX trade_datas_ts on trade_datas (transaction_timestamp);
+
+-- Convert trade_datas to a hypertable
+SELECT create_hypertable('trade_datas', 'transaction_timestamp');
 
 -- market activities
 CREATE TABLE market_activities (
@@ -263,25 +270,11 @@ CREATE TABLE market_activities (
   -- Constraints
   PRIMARY KEY (
     transaction_version,
-    event_creation_number,
-    event_sequence_number,
     event_index
   )
 );
 CREATE INDEX market_activities_mid on market_activities (market_id, event_type, event_sequence_number);
-
--- CREATE OR REPLACE VIEW owner_trades AS
--- SELECT
---   owner_addr,
---   total_pnl,
---   total_fee,
---   trade_count,
---   profit,
---   volume,
---   rank
--- FROM
---   owner_trades_materialized;
-
+CREATE INDEX market_activities_ts on market_activities (transaction_timestamp);
 
 -- sql for the materialised view:
 -- Drop existing materialized view
@@ -329,3 +322,45 @@ ON owner_trades_materialized (profit DESC, owner_addr ASC);
 
 CREATE INDEX IF NOT EXISTS owner_trades_mat_rank_idx
 ON owner_trades_materialized (rank);
+
+CREATE OR REPLACE PROCEDURE refresh_owner_trades_mv(job_id int, config jsonb)
+LANGUAGE PLPGSQL AS
+$$
+BEGIN
+  RAISE NOTICE 'Refreshing owner_trades_materialized view';
+  REFRESH MATERIALIZED VIEW CONCURRENTLY owner_trades_materialized;
+END
+$$;
+
+-- Schedule the refresh job to run every 15m using TimescaleDB's job scheduler
+SELECT add_job(
+  'refresh_owner_trades_mv',  -- procedure name
+  '15m',                       -- run every 15m
+  config => '{}'::jsonb,      -- no special config needed
+  fixed_schedule => true      -- run on a fixed schedule
+);
+
+-- Drop existing view if needed
+DROP MATERIALIZED VIEW IF EXISTS owner_trades_1hour;
+
+-- Create continuous aggregate
+CREATE MATERIALIZED VIEW owner_trades_1hour
+WITH (timescaledb.continuous) AS
+SELECT
+  owner_addr,
+  time_bucket('1 hours', transaction_timestamp) AS bucket,
+  COALESCE(SUM(pnl - fee), 0) AS profit,
+  COALESCE(SUM(fee), 0) AS fee,
+  COALESCE(SUM(pnl), 0) AS pnl,
+  COALESCE(SUM((position_size * price) / (100000000)::numeric), 0) AS volume
+FROM trade_datas
+GROUP BY owner_addr, time_bucket('1 hours', transaction_timestamp)
+WITH NO DATA;
+
+-- Index for faster queries
+CREATE INDEX IF NOT EXISTS owner_trades_1hour_idx ON owner_trades_1hour (bucket, owner_addr);
+
+SELECT add_continuous_aggregate_policy('owner_trades_1hour'::regclass,
+  start_offset=>NULL,
+  end_offset=>'1 hours'::interval,
+  schedule_interval=>'15 mins'::interval);

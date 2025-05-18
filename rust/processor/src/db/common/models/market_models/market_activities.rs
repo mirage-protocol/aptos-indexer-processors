@@ -19,7 +19,7 @@ use field_count::FieldCount;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
-#[diesel(primary_key(transaction_version, event_index, event_sequence_number,))]
+#[diesel(primary_key(transaction_version, event_index))]
 #[diesel(table_name = market_activities)]
 pub struct MarketActivityModel {
     pub transaction_version: i64,
@@ -79,7 +79,7 @@ struct MarketActivityHelper {
 }
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
-#[diesel(primary_key(transaction_version, position_id))]
+#[diesel(primary_key(transaction_version, event_index, transaction_timestamp))]
 #[diesel(table_name = trade_datas)]
 pub struct Trade {
     pub transaction_version: i64,
@@ -95,6 +95,7 @@ pub struct Trade {
     pub pnl: BigDecimal,
     pub event_type: String,
 
+    pub event_index: i64,
     pub transaction_timestamp: chrono::NaiveDateTime,
 }
 
@@ -341,6 +342,7 @@ impl MarketActivityModel {
                     fee: inner.fee.clone(),
                     pnl: BigDecimal::zero(),
                     event_type: String::from("OpenPositionEvent"),
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
 
@@ -396,6 +398,7 @@ impl MarketActivityModel {
                     fee: inner.fee.clone(),
                     pnl: inner.pnl.to_bigdecimal(),
                     event_type: String::from("ClosePositionEvent"),
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 current_position = Some(CurrentPosition {
@@ -530,6 +533,7 @@ impl MarketActivityModel {
                     fee: inner.fee.clone(),
                     pnl: BigDecimal::zero(),
                     event_type: String::from("IncreasePositionSizeEvent"),
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 current_position = Some(CurrentPosition {
@@ -584,6 +588,7 @@ impl MarketActivityModel {
                     fee: inner.fee.clone(),
                     pnl: BigDecimal::zero(),
                     event_type: String::from("DecreasePositionSizeEvent"),
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
 
@@ -638,6 +643,7 @@ impl MarketActivityModel {
                     fee: inner.fee.clone(),
                     pnl: BigDecimal::zero(),
                     event_type: String::from("LiquidatePositionEvent"),
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 current_position = Some(CurrentPosition {
@@ -692,6 +698,7 @@ impl MarketActivityModel {
                     fee: inner.fee.clone(),
                     pnl: inner.pnl.to_bigdecimal(),
                     event_type: String::from("LiquidatePositionEvent"),
+                    event_index,
                     transaction_timestamp: txn_timestamp,
                 });
                 current_position = Some(CurrentPosition {

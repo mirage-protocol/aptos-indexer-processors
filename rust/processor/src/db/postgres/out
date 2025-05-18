@@ -984,7 +984,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    market_activities (transaction_version, event_index) {
+    market_activities (transaction_version, event_creation_number, event_sequence_number, event_index) {
         transaction_version -> Int8,
         event_creation_number -> Int8,
         event_sequence_number -> Int8,
@@ -1497,7 +1497,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    trade_datas (transaction_version, event_index, transaction_timestamp) {
+    trade_datas (transaction_version, position_id) {
         transaction_version -> Int8,
         #[max_length = 66]
         market_id -> Varchar,
@@ -1511,7 +1511,6 @@ diesel::table! {
         fee -> Numeric,
         pnl -> Numeric,
         event_type -> Varchar,
-        event_index -> Int8,
         transaction_timestamp -> Timestamp,
         inserted_at -> Timestamp,
     }
@@ -1581,7 +1580,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    vault_activities (transaction_version, event_index) {
+    vault_activities (transaction_version, event_creation_number, event_sequence_number, event_index) {
         transaction_version -> Int8,
         event_creation_number -> Int8,
         event_sequence_number -> Int8,

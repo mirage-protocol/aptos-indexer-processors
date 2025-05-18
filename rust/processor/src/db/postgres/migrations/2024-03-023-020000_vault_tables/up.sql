@@ -24,8 +24,7 @@ CREATE TABLE vault_collection_configs (
   -- Constraints
   PRIMARY KEY (transaction_version, write_set_change_index)
 );
-CREATE INDEX vault_collection_configs_c_id on vault_collection_configs (collection_id);
-CREATE INDEX vault_collection_configs_cb_id on vault_collection_configs (collateral_token_id, borrow_token_id);
+CREATE INDEX vault_collection_configs_cid on vault_collection_configs (collection_id);
 
 -- vaults
 CREATE TABLE vault_collection_datas (
@@ -55,7 +54,8 @@ CREATE TABLE vault_collection_datas (
   PRIMARY KEY (transaction_version, write_set_change_index)
 );
 CREATE INDEX vault_collection_datas_cid on vault_collection_datas (collection_id);
-CREATE INDEX vault_collection_datas_cb_id on vault_collection_datas (collateral_token_id, borrow_token_id);
+CREATE INDEX vault_collection_datas_ct on vault_collection_datas (collateral_token_id);
+CREATE INDEX vault_collection_datas_ts on vault_collection_datas (transaction_timestamp);
 
 -- user infos
 CREATE TABLE vault_datas (
@@ -75,6 +75,7 @@ CREATE TABLE vault_datas (
   PRIMARY KEY (transaction_version, write_set_change_index)
 );
 CREATE INDEX vault_datas_owner on vault_datas (owner_addr);
+CREATE INDEX vault_datas_ts on vault_datas (transaction_timestamp);
 
 -- vault activities
 CREATE TABLE vault_activities (
@@ -100,11 +101,8 @@ CREATE TABLE vault_activities (
   transaction_timestamp TIMESTAMP NOT NULL,
   inserted_at TIMESTAMP NOT NULL DEFAULT NOW(),
   -- Constraints
-  PRIMARY KEY (
-    transaction_version,
-    event_creation_number,
-    event_sequence_number,
-    event_index
-  )
+  PRIMARY KEY (transaction_version, event_index)
 );
-CREATE INDEX vault_activities_c_id_et_sn on vault_activities (collection_id, event_type, event_sequence_number);
+CREATE INDEX vault_activities_cid on vault_activities (collection_id, event_type);
+CREATE INDEX vault_activities_oa on vault_activities (owner_addr, event_type);
+CREATE INDEX vault_activities_ts on vault_activities (transaction_timestamp);
