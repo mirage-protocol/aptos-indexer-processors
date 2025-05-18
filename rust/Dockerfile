@@ -55,5 +55,6 @@ ENV GIT_SHA ${GIT_SHA}
 
 # The health check port
 EXPOSE 8084
+EXPOSE 8085
 
 ENTRYPOINT ["/usr/local/bin/processor"]

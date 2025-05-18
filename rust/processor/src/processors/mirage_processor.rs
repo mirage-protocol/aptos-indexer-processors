@@ -440,7 +440,7 @@ fn insert_current_tpsls_query(
                 is_closed.eq(excluded(is_closed)),
                 event_index.eq(excluded(event_index)),
                 inserted_at.eq(excluded(inserted_at)),
-                owner_addr.eq(diesel::dsl::sql::<diesel::sql_types::Text>("CASE WHEN excluded.owner_addr IS NOT NULL THEN excluded.owner_addr ELSE current_tpsls.owner_addr END")),
+                owner_addr.eq(diesel::dsl::sql::<diesel::sql_types::Text>("CASE WHEN excluded.owner_addr IS NOT NULL THEN excluded.owner_addr ELSE current_tpsls.owner_addr END ")), // trailing space is required or parsed as ENDWHERE
             )),
         Some(
             "WHERE current_tpsls.last_transaction_version < excluded.last_transaction_version 
@@ -468,7 +468,7 @@ fn insert_current_limit_orders_query(
                 is_closed.eq(excluded(is_closed)),
                 event_index.eq(excluded(event_index)),
                 inserted_at.eq(excluded(inserted_at)),
-                owner_addr.eq(diesel::dsl::sql::<diesel::sql_types::Text>("CASE WHEN excluded.owner_addr IS NOT NULL THEN excluded.owner_addr ELSE current_tpsls.owner_addr END")),
+                owner_addr.eq(diesel::dsl::sql::<diesel::sql_types::Text>("CASE WHEN excluded.owner_addr IS NOT NULL THEN excluded.owner_addr ELSE current_limit_orders.owner_addr END ")),
             )),
         Some("WHERE current_limit_orders.last_transaction_version < excluded.last_transaction_version 
             OR (current_limit_orders.last_transaction_version = excluded.last_transaction_version 
