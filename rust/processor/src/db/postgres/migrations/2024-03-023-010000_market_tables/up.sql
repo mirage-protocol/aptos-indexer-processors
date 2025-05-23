@@ -332,6 +332,11 @@ BEGIN
 END
 $$;
 
+-- Drop the existing refresh job if it exists
+SELECT delete_job(job_id)
+FROM timescaledb_information.jobs
+WHERE proc_name = 'refresh_owner_trades_mv' AND proc_schema = 'public';
+
 -- Schedule the refresh job to run every 15m using TimescaleDB's job scheduler
 SELECT add_job(
   'refresh_owner_trades_mv',  -- procedure name
@@ -364,3 +369,39 @@ SELECT add_continuous_aggregate_policy('owner_trades_1hour'::regclass,
   start_offset=>NULL,
   end_offset=>'1 hours'::interval,
   schedule_interval=>'15 mins'::interval);
+
+DROP MATERIALIZED VIEW IF EXISTS market_24h_volumes;
+
+-- Drop the existing refresh job if it exists
+SELECT delete_job(job_id)
+FROM timescaledb_information.jobs
+WHERE proc_name = 'refresh_market_24h_volumes' AND proc_schema = 'public';
+
+-- Create the continuous aggregate
+CREATE MATERIALIZED VIEW market_24h_volumes
+WITH (timescaledb.continuous) AS
+SELECT
+    time_bucket('24 hours', transaction_timestamp) AS bucket_time,
+    market_id,
+    SUM((position_size * price) / 100000000.0) AS volume_24h
+FROM
+    trade_datas
+GROUP BY
+    time_bucket('24 hours', transaction_timestamp),
+    market_id
+WITH NO DATA;
+
+-- Add refresh policy
+SELECT add_continuous_aggregate_policy('market_24h_volumes',
+    start_offset => INTERVAL '24 hours',
+    end_offset => NULL,
+    schedule_interval => INTERVAL '15 seconds');
+
+CREATE OR REPLACE VIEW latest_market_24h_volumes AS
+SELECT
+market_id,
+volume_24h
+FROM
+market_24h_volumes
+WHERE
+bucket_time = (SELECT MAX(bucket_time) FROM market_24h_volumes);
