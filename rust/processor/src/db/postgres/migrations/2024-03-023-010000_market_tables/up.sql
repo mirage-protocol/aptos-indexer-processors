@@ -365,17 +365,22 @@ WITH NO DATA;
 -- Index for faster queries
 CREATE INDEX IF NOT EXISTS owner_trades_1hour_idx ON owner_trades_1hour (bucket, owner_addr);
 
+-- Drop existing policy if it exists
+DO $$
+BEGIN
+  PERFORM remove_continuous_aggregate_policy('owner_trades_1hour');
+EXCEPTION
+  WHEN others THEN
+    NULL; -- Ignore errors if policy doesn't exist
+END
+$$;
+
 SELECT add_continuous_aggregate_policy('owner_trades_1hour'::regclass,
   start_offset=>NULL,
   end_offset=>'1 hours'::interval,
   schedule_interval=>'15 mins'::interval);
 
 DROP MATERIALIZED VIEW IF EXISTS market_24h_volumes;
-
--- Drop the existing refresh job if it exists
-SELECT delete_job(job_id)
-FROM timescaledb_information.jobs
-WHERE proc_name = 'refresh_market_24h_volumes' AND proc_schema = 'public';
 
 -- Create the continuous aggregate
 CREATE MATERIALIZED VIEW market_24h_volumes
@@ -390,6 +395,16 @@ GROUP BY
     time_bucket('24 hours', transaction_timestamp),
     market_id
 WITH NO DATA;
+
+-- Drop existing policy if it exists
+DO $$
+BEGIN
+  PERFORM remove_continuous_aggregate_policy('market_24h_volumes');
+EXCEPTION
+  WHEN others THEN
+    NULL; -- Ignore errors if policy doesn't exist
+END
+$$;
 
 -- Add refresh policy
 SELECT add_continuous_aggregate_policy('market_24h_volumes',

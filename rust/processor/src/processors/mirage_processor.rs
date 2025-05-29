@@ -279,13 +279,8 @@ fn insert_mirage_debt_store_query(
     (
         diesel::insert_into(schema::mirage_debt_store_datas::table)
             .values(items_to_insert)
-            .on_conflict((transaction_version, write_set_change_index))
-            .do_update()
-            .set((
-                debt_elastic.eq(excluded(debt_elastic)),
-                debt_base.eq(excluded(debt_base)),
-                inserted_at.eq(excluded(inserted_at)),
-            )),
+            .on_conflict((transaction_version, write_set_change_index, transaction_timestamp))
+            .do_nothing()
         None,
     )
 }

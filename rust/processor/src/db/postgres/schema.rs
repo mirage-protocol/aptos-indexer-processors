@@ -1077,7 +1077,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    mirage_debt_store_datas (transaction_version, write_set_change_index) {
+    mirage_debt_store_datas (transaction_version, write_set_change_index, transaction_timestamp) {
         transaction_version -> Int8,
         write_set_change_index -> Int8,
         #[max_length = 66]

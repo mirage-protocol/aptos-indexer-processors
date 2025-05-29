@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 #[derive(Clone, Debug, Deserialize, FieldCount, Identifiable, Insertable, Serialize)]
-#[diesel(primary_key(transaction_version, write_set_change_index))]
+#[diesel(primary_key(transaction_version, write_set_change_index, transaction_timestamp))]
 #[diesel(table_name = mirage_debt_store_datas)]
 pub struct MirageDebtStoreModel {
     pub transaction_version: i64,
