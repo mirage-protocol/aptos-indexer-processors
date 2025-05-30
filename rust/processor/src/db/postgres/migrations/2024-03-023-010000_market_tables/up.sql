@@ -420,3 +420,29 @@ FROM
 market_24h_volumes
 WHERE
 bucket_time = (SELECT MAX(bucket_time) FROM market_24h_volumes);
+
+CREATE
+OR REPLACE FUNCTION public.get_trade_stats(address text, resolution text, period text) RETURNS SETOF owner_trades_1hour LANGUAGE sql STABLE AS $ function $
+SELECT
+  address :: text AS owner_addr,
+  time_bucket_gapfill(
+    resolution :: interval,
+    bucket,
+    NOW() - period :: interval,
+    NOW()
+  ) :: timestamptz AS bucket,
+  COALESCE(SUM(profit), 0) / 100000000 :: numeric AS profit,
+  COALESCE(SUM(fee), 0) / 100000000 :: numeric AS fee,
+  COALESCE(SUM(pnl), 0) / 100000000 :: numeric AS pnl,
+  COALESCE(SUM(volume), 0) / 100000000 :: numeric AS volume
+FROM
+  owner_trades_1hour
+WHERE
+  owner_addr = address
+  AND bucket >= NOW() - period :: interval
+  AND bucket < NOW()
+GROUP BY
+  2
+ORDER BY
+  2;
+$ function $
