@@ -380,6 +380,7 @@ SELECT add_continuous_aggregate_policy('owner_trades_1hour'::regclass,
   end_offset=>'1 hours'::interval,
   schedule_interval=>'15 mins'::interval);
 
+DROP VIEW IF EXISTS latest_market_24h_volumes;
 DROP MATERIALIZED VIEW IF EXISTS market_24h_volumes;
 
 -- Create the continuous aggregate
@@ -422,7 +423,7 @@ WHERE
 bucket_time = (SELECT MAX(bucket_time) FROM market_24h_volumes);
 
 CREATE
-OR REPLACE FUNCTION public.get_trade_stats(address text, resolution text, period text) RETURNS SETOF owner_trades_1hour LANGUAGE sql STABLE AS $ function $
+OR REPLACE FUNCTION public.get_trade_stats(address text, resolution text, period text) RETURNS SETOF owner_trades_1hour LANGUAGE sql STABLE AS $function$
 SELECT
   address :: text AS owner_addr,
   time_bucket_gapfill(
@@ -445,4 +446,4 @@ GROUP BY
   2
 ORDER BY
   2;
-$ function $
+$function$;

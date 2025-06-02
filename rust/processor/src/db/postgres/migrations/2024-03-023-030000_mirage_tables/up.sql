@@ -72,3 +72,82 @@ SELECT add_continuous_aggregate_policy('mirage_debt_1hour'::regclass,
   start_offset=>NULL,
   end_offset=>'1 hours'::interval,
   schedule_interval=>'15 mins'::interval);
+
+CREATE OR REPLACE FUNCTION public.get_protocol_debt_stats(resolution text, period text) 
+RETURNS SETOF mirage_debt_1hour 
+LANGUAGE sql STABLE 
+AS $function$
+SELECT
+  object_address,
+  time_bucket(resolution::interval, bucket)::timestamptz AS bucket,
+  COALESCE(
+    (
+      array_agg(
+        start_net_fees
+        ORDER BY
+          bucket ASC
+      )
+    )[1],
+    0
+  )::numeric AS start_net_fees,
+  COALESCE(
+    (
+      array_agg(
+        end_net_fees
+        ORDER BY
+          bucket DESC
+      )
+    )[1],
+    0
+  )::numeric AS end_net_fees,
+  COALESCE(
+    (
+      array_agg(
+        start_net_burn
+        ORDER BY
+          bucket ASC
+      )
+    )[1],
+    0
+  )::numeric AS start_net_burn,
+  COALESCE(
+    (
+      array_agg(
+        end_net_burn
+        ORDER BY
+          bucket DESC
+      )
+    )[1],
+    0
+  )::numeric AS end_net_burn,
+  COALESCE(
+    (
+      array_agg(
+        start_debt_ratio
+        ORDER BY
+          bucket ASC
+      )
+    )[1],
+    1.0
+  )::numeric AS start_debt_ratio,
+  COALESCE(
+    (
+      array_agg(
+        end_debt_ratio
+        ORDER BY
+          bucket DESC
+      )
+    )[1],
+    1.0
+  )::numeric AS end_debt_ratio
+FROM
+  mirage_debt_1hour
+WHERE
+  bucket >= NOW() - period::interval
+  AND bucket < NOW()
+GROUP BY
+  object_address,
+  time_bucket(resolution::interval, bucket)
+ORDER BY
+  2;
+$function$;
