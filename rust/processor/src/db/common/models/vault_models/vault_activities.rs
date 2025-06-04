@@ -242,8 +242,21 @@ impl VaultActivityModel {
                 collateralization_rate_after: None,
                 new_interest_per_second: Some(inner.new_interest_per_second.clone()),
             },
+            VaultEvent::AccrueInterestEvent(inner) => VaultActivityHelper {
+                event_type: String::from("AccrueInterestEvent"),
+                collection_id: inner.collection.get_reference_address(),
+                vault_id: None,
+                src_vault_id: None,
+                owner_addr: None,
+                collateral_amount: None,
+                borrow_amount: None,
+                fee_amount: Some(inner.interest_amount.clone()),
+                socialized_amount: None,
+                collateralization_rate_before: None,
+                collateralization_rate_after: None,
+                new_interest_per_second: None
+            },
         };
-
         Self {
             transaction_version: txn_version,
             event_creation_number,

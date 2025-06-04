@@ -84,6 +84,13 @@ pub struct InterestRateChangeEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AccrueInterestEvent {
+    pub collection: ResourceReference,
+    #[serde(deserialize_with = "deserialize_from_string")]
+    pub interest_amount: BigDecimal,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum VaultEvent {
     AddCollateralEvent(AddCollateralEvent),
     RemoveCollateralEvent(RemoveCollateralEvent),
@@ -92,6 +99,7 @@ pub enum VaultEvent {
     MergeVaultEvent(MergeVaultEvent),
     LiquidationEvent(LiquidationEvent),
     InterestRateChangeEvent(InterestRateChangeEvent),
+    AccrueInterestEvent(AccrueInterestEvent),
 }
 
 impl VaultEvent {
@@ -104,6 +112,7 @@ impl VaultEvent {
             format!("{}::vault::MergeVaultEvent", mirage_module_address),
             format!("{}::vault::LiquidationEvent", mirage_module_address),
             format!("{}::vault::InterestRateChangeEvent", mirage_module_address),
+            format!("{}::vault::AccrueInterestEvent", mirage_module_address),
         ]
         .contains(&event_type.to_string())
     }
@@ -143,6 +152,9 @@ impl VaultEvent {
             x if x == format!("{}::vault::InterestRateChangeEvent", mirage_module_address) => {
                 serde_json::from_str(data)
                     .map(|inner| Some(VaultEvent::InterestRateChangeEvent(inner)))
+            },
+            x if x == format!("{}::vault::AccrueInterestEvent", mirage_module_address) => {
+                serde_json::from_str(data).map(|inner| Some(VaultEvent::AccrueInterestEvent(inner)))
             },
             _ => Ok(None),
         }
